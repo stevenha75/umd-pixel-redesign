@@ -3,9 +3,9 @@
 Use this checklist to track your progress through the migration.
 
 ## Phase 1: Project Initialization & Setup
-- [ ] **Initialize New Frontend**
-    - [ ] Create Next.js app: `npx create-next-app@latest umd-pixel-redesign --typescript --eslint --tailwind`
-    - [ ] Verify default page loads.
+- [x] **Initialize New Frontend**
+    - [x] Create Next.js app: `npx create-next-app@latest umd-pixel-redesign --typescript --eslint --tailwind`
+    - [x] Verify default page loads.
 - [ ] **Firebase Project Setup**
     - [ ] Create project in [Firebase Console](https://console.firebase.google.com/).
     - [ ] Enable **Authentication** (Email/Password as placeholder, later Custom).
