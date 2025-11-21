@@ -108,8 +108,6 @@ export const authWithSlack = functions.https.onCall(async (data, context) => {
     }
 });
 
-// --- Phase 4: Backend Logic ---
-
 /**
  * Trigger: onEventUpdate
  * Listens for changes in 'events' collection.
