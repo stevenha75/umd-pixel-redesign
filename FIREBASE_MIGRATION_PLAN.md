@@ -29,45 +29,45 @@ Use this checklist to track your progress through the migration.
     - [x] Implement rule: `allow write: if request.auth.token.isAdmin == true;` (Admin only).
 
 ## Phase 3: Authentication (Slack + Firebase)
-- [ ] **Slack App Configuration**
-    - [ ] Create Slack App in Slack API portal.
-    - [ ] Enable OAuth & Permissions.
-    - [ ] Add Redirect URI (e.g., `http://localhost:5001/.../authWithSlack`).
-- [ ] **Cloud Function: `authWithSlack`**
-    - [ ] Scaffold function in `functions/src/index.ts`.
-    - [ ] Implement Slack OAuth exchange (code -> token).
-    - [ ] Implement Firebase Custom Token creation.
-    - [ ] Deploy function: `firebase deploy --only functions`.
-- [ ] **Frontend Auth Integration**
-    - [ ] Create `Login` component with "Sign in with Slack" button.
-    - [ ] Handle redirect and token exchange.
-    - [ ] Test login flow end-to-end.
+- [x] **Slack App Configuration**
+    - [x] Create Slack App in Slack API portal.
+    - [x] Enable OAuth & Permissions.
+    - [x] Add Redirect URI (e.g., `http://localhost:5001/.../authWithSlack`).
+- [x] **Cloud Function: `authWithSlack`**
+    - [x] Scaffold function in `functions/src/index.ts`.
+    - [x] Implement Slack OAuth exchange (code -> token).
+    - [x] Implement Firebase Custom Token creation.
+    - [x] Deploy function: `firebase deploy --only functions`.
+- [x] **Frontend Auth Integration**
+    - [x] Create `Login` component with "Sign in with Slack" button.
+    - [x] Handle redirect and token exchange.
+    - [x] Test login flow end-to-end.
 
 ## Phase 4: Backend Logic (Cloud Functions)
-- [ ] **Trigger: `onEventUpdate`**
-    - [ ] Create Firestore trigger `onWrite` for `events/{eventId}`.
-    - [ ] Implement logic to calculate pixel differences.
-    - [ ] Implement logic to update `users/{userId}` with new `pixelCached`.
-- [ ] **Trigger: `onExcusedAbsenceUpdate`**
-    - [ ] Create Firestore trigger for `excused_absences`.
-    - [ ] Implement logic to adjust pixels on approval.
-- [ ] **Testing**
-    - [ ] Test adding an attendee to an event manually in Emulator.
-    - [ ] Verify user's pixel count updates automatically.
+- [x] **Trigger: `onEventUpdate`**
+    - [x] Create Firestore trigger `onWrite` for `events/{eventId}`.
+    - [x] Implement logic to calculate pixel differences.
+    - [x] Implement logic to update `users/{userId}` with new `pixelCached`.
+- [x] **Trigger: `onExcusedAbsenceUpdate`**
+    - [x] Create Firestore trigger for `excused_absences`.
+    - [x] Implement logic to adjust pixels on approval.
+- [x] **Testing**
+    - [x] Test adding an attendee to an event manually in Emulator.
+    - [x] Verify user's pixel count updates automatically.
 
 ## Phase 5: Data Migration
-- [ ] **Export Script**
-    - [ ] Create script `scripts/export_mongo.js`.
-    - [ ] Connect to old MongoDB.
-    - [ ] Export `members`, `events`, `semesters` to JSON.
-- [ ] **Import Script**
-    - [ ] Create script `scripts/import_firestore.js`.
-    - [ ] Initialize Firebase Admin SDK.
-    - [ ] Read JSON and batch write to Firestore.
-- [ ] **Run Migration**
-    - [ ] Run export.
-    - [ ] Run import.
-    - [ ] Verify data counts match.
+- [x] **Export Script** (SKIPPED)
+    - [x] Create script `scripts/export_mongo.js`.
+    - [x] Connect to old MongoDB.
+    - [x] Export `members`, `events`, `semesters` to JSON.
+- [x] **Import Script** (SKIPPED)
+    - [x] Create script `scripts/import_firestore.js`.
+    - [x] Initialize Firebase Admin SDK.
+    - [x] Read JSON and batch write to Firestore.
+- [x] **Run Migration** (SKIPPED)
+    - [x] Run export.
+    - [x] Run import.
+    - [x] Verify data counts match.
 
 ## Phase 6: Frontend Implementation
 - [ ] **Setup**
