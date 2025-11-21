@@ -19,14 +19,14 @@ Use this checklist to track your progress through the migration.
     - [x] Verify `firebase.json` and `.firebaserc` are created.
 
 ## Phase 2: Database Architecture (Firestore)
-- [ ] **Schema Design**
-    - [ ] Document the `users` schema (fields: `firstName`, `lastName`, `pixelCached`, `slackId`, `isAdmin`).
-    - [ ] Document the `events` schema (fields: `name`, `date`, `type`, `pixels`, `attendees` array).
-    - [ ] Document the `semesters` schema.
-- [ ] **Security Rules**
-    - [ ] Create `firestore.rules`.
-    - [ ] Implement rule: `allow read: if request.auth != null;` (Basic start).
-    - [ ] Implement rule: `allow write: if request.auth.token.isAdmin == true;` (Admin only).
+- [x] **Schema Design**
+    - [x] Document the `users` schema (fields: `firstName`, `lastName`, `pixelCached`, `slackId`, `isAdmin`).
+    - [x] Document the `events` schema (fields: `name`, `date`, `type`, `pixels`, `attendees` array).
+    - [x] Document the `semesters` schema.
+- [x] **Security Rules**
+    - [x] Create `firestore.rules`.
+    - [x] Implement rule: `allow read: if request.auth != null;` (Basic start).
+    - [x] Implement rule: `allow write: if request.auth.token.isAdmin == true;` (Admin only).
 
 ## Phase 3: Authentication (Slack + Firebase)
 - [ ] **Slack App Configuration**
