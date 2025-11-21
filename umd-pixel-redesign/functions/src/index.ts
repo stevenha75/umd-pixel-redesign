@@ -22,7 +22,6 @@ export const authWithSlack = functions.https.onCall(async (data, context) => {
     }
 
     try {
-        // 1. Exchange code for access token
         const tokenResponse = await axios.post(
             "https://slack.com/api/oauth.v2.access",
             null,
@@ -47,7 +46,6 @@ export const authWithSlack = functions.https.onCall(async (data, context) => {
         const slackUserId = authed_user.id;
         const accessToken = authed_user.access_token;
 
-        // 2. Get User Info (to get email/name)
         const userResponse = await axios.get("https://slack.com/api/users.info", {
             params: {
                 user: slackUserId,
@@ -69,7 +67,6 @@ export const authWithSlack = functions.https.onCall(async (data, context) => {
         const firstName = slackUser.profile.first_name || slackUser.real_name.split(" ")[0];
         const lastName = slackUser.profile.last_name || slackUser.real_name.split(" ").slice(1).join(" ");
 
-        // 3. Check if user exists in Firestore
         const userRef = admin.firestore().collection("users").doc(slackUserId);
         const userDoc = await userRef.get();
 
@@ -97,7 +94,6 @@ export const authWithSlack = functions.https.onCall(async (data, context) => {
             });
         }
 
-        // 4. Create Firebase Custom Token
         const customToken = await admin.auth().createCustomToken(slackUserId, {
             isAdmin: isAdmin,
         });
@@ -177,20 +173,12 @@ export const onExcusedAbsenceUpdate = functions.firestore
 async function recalculateUserPixels(userId: string) {
     const db = admin.firestore();
 
-    // 1. Get User's Pixel Delta (manual adjustment)
     const userDoc = await db.collection("users").doc(userId).get();
     if (!userDoc.exists) return;
     const pixelDelta = userDoc.data()?.pixelDelta || 0;
 
     let totalPixels = pixelDelta;
 
-    // 2. Get all events where user is an attendee
-    // Note: In a large scale app, this query might be expensive. 
-    // Better to keep a running total, but for migration fidelity we replicate the "recalculate all" approach first.
-    // Or we can query only events this semester? 
-    // The old code queried ALL events in the CURRENT semester.
-
-    // Let's get the current semester first
     const settingsDoc = await db.collection("settings").doc("global").get();
     const currentSemesterId = settingsDoc.data()?.currentSemesterId;
 
@@ -199,7 +187,21 @@ async function recalculateUserPixels(userId: string) {
         return;
     }
 
-    // Query events in current semester
+    // Get all approved excused absences for this user
+    const excusedSnapshot = await db.collectionGroup("excused_absences")
+        .where("userId", "==", userId)
+        .where("status", "==", "approved")
+        .get();
+
+    const excusedEventIds = new Set<string>();
+    excusedSnapshot.forEach((doc) => {
+        // Parent of excused_absences is the event document
+        const eventRef = doc.ref.parent.parent;
+        if (eventRef) {
+            excusedEventIds.add(eventRef.id);
+        }
+    });
+
     const eventsSnapshot = await db.collection("events")
         .where("semesterId", "==", currentSemesterId)
         .get();
@@ -209,12 +211,12 @@ async function recalculateUserPixels(userId: string) {
         const attendees = eventData.attendees || [];
         const pixels = eventData.pixels || 0;
 
-        if (attendees.includes(userId)) {
+        // Only count pixels if user attended AND is not excused
+        if (attendees.includes(userId) && !excusedEventIds.has(doc.id)) {
             totalPixels += pixels;
         }
     });
 
-    // 3. Update User
     await db.collection("users").doc(userId).update({
         pixels: totalPixels,
     });

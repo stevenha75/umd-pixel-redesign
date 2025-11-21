@@ -10,8 +10,6 @@ export default function LoginPage() {
 
     // Placeholder Client ID - User needs to replace this
     const SLACK_CLIENT_ID = "PLACEHOLDER_SLACK_CLIENT_ID";
-    const REDIRECT_URI = "http://localhost:3000/auth/callback"; // Adjust for production
-
     useEffect(() => {
         if (!loading && user) {
             router.push("/");
@@ -19,7 +17,8 @@ export default function LoginPage() {
     }, [user, loading, router]);
 
     const handleLogin = () => {
-        const slackAuthUrl = `https://slack.com/oauth/v2/authorize?client_id=${SLACK_CLIENT_ID}&user_scope=identity.basic,identity.email,identity.avatar&redirect_uri=${encodeURIComponent(REDIRECT_URI)}`;
+        const redirectUri = `${window.location.origin}/auth/callback`;
+        const slackAuthUrl = `https://slack.com/oauth/v2/authorize?client_id=${SLACK_CLIENT_ID}&user_scope=identity.basic,identity.email,identity.avatar&redirect_uri=${encodeURIComponent(redirectUri)}`;
         window.location.href = slackAuthUrl;
     };
 

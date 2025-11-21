@@ -44,9 +44,10 @@ export default function AuthCallback() {
 
                 setStatus("Success! Redirecting...");
                 router.push("/");
-            } catch (err: any) {
+            } catch (err: unknown) {
                 console.error("Login failed", err);
-                setError(err.message || "Authentication failed");
+                const errorMessage = err instanceof Error ? err.message : "Authentication failed";
+                setError(errorMessage);
             }
         };
 
