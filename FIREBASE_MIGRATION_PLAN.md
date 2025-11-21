@@ -6,17 +6,17 @@ Use this checklist to track your progress through the migration.
 - [x] **Initialize New Frontend**
     - [x] Create Next.js app: `npx create-next-app@latest umd-pixel-redesign --typescript --eslint --tailwind`
     - [x] Verify default page loads.
-- [ ] **Firebase Project Setup**
-    - [ ] Create project in [Firebase Console](https://console.firebase.google.com/).
-    - [ ] Enable **Authentication** (Email/Password as placeholder, later Custom).
-    - [ ] Enable **Firestore Database** (Start in Test Mode).
-    - [ ] Enable **Functions** (Requires Blaze Plan - Pay as you go).
-    - [ ] Register web app and get config.
-- [ ] **Local Development Environment**
-    - [ ] Install tools: `npm install -g firebase-tools`
-    - [ ] Login: `firebase login`
-    - [ ] Init project: `firebase init` (Select Firestore, Functions, Emulators).
-    - [ ] Verify `firebase.json` and `.firebaserc` are created.
+- [x] **Firebase Project Setup**
+    - [x] Create project in [Firebase Console](https://console.firebase.google.com/).
+    - [x] Enable **Authentication** (Email/Password as placeholder, later Custom).
+    - [x] Enable **Firestore Database** (Start in Test Mode).
+    - [x] Enable **Functions** (Requires Blaze Plan - Pay as you go).
+    - [x] Register web app and get config.
+- [x] **Local Development Environment**
+    - [x] Install tools: `npm install -g firebase-tools`
+    - [x] Login: `firebase login`
+    - [x] Init project: `firebase init` (Select Firestore, Functions, Emulators).
+    - [x] Verify `firebase.json` and `.firebaserc` are created.
 
 ## Phase 2: Database Architecture (Firestore)
 - [ ] **Schema Design**
