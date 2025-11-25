@@ -32,6 +32,7 @@ import {
   deleteEventById,
   fetchAdminData,
   updateEvent as updateEventApi,
+  updateEventPixels,
   updateExcusedStatus as apiUpdateExcusedStatus,
   addAttendee,
   removeAttendee,
@@ -190,25 +191,6 @@ export default function AdminPage() {
     }
   };
 
-  const enrichUsers = async (rows: ExcusedRow[]) => {
-    const uniqueIds = Array.from(new Set(rows.map((r) => r.userId).filter(Boolean)));
-    await Promise.all(
-      uniqueIds.map(async (uid) => {
-        const snap = await getDoc(doc(db, "users", uid));
-        if (snap.exists()) {
-          const data = snap.data() as any;
-          const name = `${data.firstName || ""} ${data.lastName || ""}`.trim() || "Member";
-          const email = data.email || data.slackEmail || "";
-          rows.forEach((r) => {
-            if (r.userId === uid) {
-              r.userName = name;
-              r.userEmail = email;
-            }
-          });
-        }
-      })
-    );
-  };
 
   const startEdit = (evt: EventRow) => {
     setEditingId(evt.id);
@@ -329,7 +311,11 @@ export default function AdminPage() {
   const toggleEventSelection = (id: string) => {
     setSelectedEvents((prev) => {
       const next = new Set(prev);
-      next.has(id) ? next.delete(id) : next.add(id);
+      if (next.has(id)) {
+        next.delete(id);
+      } else {
+        next.add(id);
+      }
       return next;
     });
   };
@@ -389,9 +375,7 @@ export default function AdminPage() {
     setMessage(null);
     try {
       await Promise.all(
-        Array.from(selectedEvents).map((id) =>
-          updateEventApi(id, { pixels: Number(bulkPixels), name: "", type: "", date: "" } as any)
-        )
+        Array.from(selectedEvents).map((id) => updateEventPixels(id, Number(bulkPixels)))
       );
       setEvents((prev) =>
         prev.map((evt) =>
@@ -898,7 +882,7 @@ export default function AdminPage() {
             </CardContent>
           </Card>
         </div>
-      </main>
+      </AdminLayout>
     </ProtectedRoute>
   );
 }

@@ -30,8 +30,11 @@ export default function SlackCallback() {
 
     const authenticate = async () => {
       try {
-        const authWithSlack = httpsCallable(functions, "authWithSlack");
-        const response: any = await authWithSlack({ code, redirectUri });
+        const authWithSlack = httpsCallable<
+          { code: string; redirectUri: string },
+          { token: string }
+        >(functions, "authWithSlack");
+        const response = await authWithSlack({ code, redirectUri });
         const token = response?.data?.token;
 
         if (!token) {
@@ -40,7 +43,7 @@ export default function SlackCallback() {
 
         await signInWithCustomToken(auth, token);
         router.replace("/");
-      } catch (err: any) {
+      } catch (err) {
         console.error("Slack auth callback failed", err);
         setStatus("Authentication failed. Please try again.");
       }

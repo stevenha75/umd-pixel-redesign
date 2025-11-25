@@ -57,7 +57,11 @@ export default function MembersPage() {
   const toggleSelect = (id: string) => {
     setSelected((prev) => {
       const next = new Set(prev);
-      next.has(id) ? next.delete(id) : next.add(id);
+      if (next.has(id)) {
+        next.delete(id);
+      } else {
+        next.add(id);
+      }
       return next;
     });
   };
@@ -222,7 +226,7 @@ export default function MembersPage() {
                   onChange={(e) => setSearch(e.target.value)}
                   className="md:w-64"
                 />
-                <Select value={sort} onValueChange={(v) => setSort(v as any)}>
+                <Select value={sort} onValueChange={(v) => setSort(v as "pixels" | "name")}>
                   <SelectTrigger className="w-40">
                     <SelectValue placeholder="Sort" />
                   </SelectTrigger>

@@ -10,6 +10,7 @@ import {
   where,
 } from "firebase/firestore";
 import { db } from "./firebase";
+import type { EventDocument, UserDocument, ActivityDocument } from "./types";
 
 export type PixelLogRow = {
   id: string;
@@ -88,7 +89,7 @@ export async function fetchDashboardData(userId: string): Promise<DashboardData>
   let earnedPixels = 0;
 
   eventsSnap.forEach((eventDoc) => {
-    const event = eventDoc.data() as any;
+    const event = eventDoc.data() as EventDocument;
     const attendees: string[] = event.attendees || [];
     const pixels: number = event.pixels || 0;
     const eventDate = event.date?.toDate ? event.date.toDate() : new Date(event.date || Date.now());
@@ -125,7 +126,7 @@ export async function fetchDashboardData(userId: string): Promise<DashboardData>
     query(collection(db, "activities"), where("semesterId", "==", currentSemesterId))
   );
   activitiesSnap.forEach((docSnap) => {
-    const data = docSnap.data() as any;
+    const data = docSnap.data() as ActivityDocument;
     const multipliers = data.multipliers || {};
     const multiplier = multipliers[userId] || 0;
     if (multiplier) {
@@ -149,8 +150,8 @@ export async function fetchDashboardData(userId: string): Promise<DashboardData>
     const leaderboardSnap = await getDocs(
       query(collection(db, "users"), orderBy("pixelCached", "desc"), limit(10))
     );
-    leaderboard = leaderboardSnap.docs.map((docSnap, index) => {
-      const data = docSnap.data() as any;
+    leaderboard = leaderboardSnap.docs.map((docSnap) => {
+      const data = docSnap.data() as UserDocument;
       const name = `${data.firstName || ""} ${data.lastName || ""}`.trim() || "Member";
       return {
         id: docSnap.id,

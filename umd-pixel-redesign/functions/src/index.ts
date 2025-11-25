@@ -20,7 +20,7 @@ function assertSlackConfig() {
     }
 }
 
-export const authWithSlack = functions.https.onCall(async (data, context) => {
+export const authWithSlack = functions.https.onCall(async (data, _context) => {
     const { code, redirectUri } = data;
 
     assertSlackConfig();
@@ -137,7 +137,7 @@ export const authWithSlack = functions.https.onCall(async (data, context) => {
  */
 export const onEventUpdate = functions.firestore
     .document("events/{eventId}")
-    .onWrite(async (change, context) => {
+    .onWrite(async (change, _context) => {
         const beforeData = change.before.exists ? change.before.data() : null;
         const afterData = change.after.exists ? change.after.data() : null;
 
@@ -169,7 +169,7 @@ export const onEventUpdate = functions.firestore
  */
 export const onExcusedAbsenceUpdate = functions.firestore
     .document("events/{eventId}/excused_absences/{absenceId}")
-    .onWrite(async (change, context) => {
+    .onWrite(async (change, _context) => {
         const afterData = change.after.exists ? change.after.data() : null;
         const beforeData = change.before.exists ? change.before.data() : null;
 
@@ -263,7 +263,7 @@ async function recalculateUserPixels(userId: string) {
  */
 export const onActivityUpdate = functions.firestore
     .document("activities/{activityId}")
-    .onWrite(async (change, context) => {
+    .onWrite(async (change, _context) => {
         const before = change.before.exists ? change.before.data() : null;
         const after = change.after.exists ? change.after.data() : null;
         const userIds = new Set<string>();

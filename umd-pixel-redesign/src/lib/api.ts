@@ -15,6 +15,12 @@ import {
   where,
 } from "firebase/firestore";
 import { db } from "./firebase";
+import type {
+  EventDocument,
+  UserDocument,
+  ActivityDocument,
+  ExcusedAbsenceDocument,
+} from "./types";
 
 export type EventRecord = {
   id: string;
@@ -94,7 +100,7 @@ export async function fetchAdminData(): Promise<AdminData> {
   const attendeeIds = new Set<string>();
 
   eventsSnap.forEach((d) => {
-    const data = d.data() as any;
+    const data = d.data() as EventDocument;
     const dateVal = data.date?.toDate ? data.date.toDate() : new Date(data.date || Date.now());
     const name = data.name || data.eventName || "Event";
     const attendees: string[] = data.attendees || [];
@@ -118,7 +124,7 @@ export async function fetchAdminData(): Promise<AdminData> {
   const excused: ExcusedRequest[] = [];
   const userIds = new Set<string>(attendeeIds);
   excusedSnap.forEach((d) => {
-    const data = d.data() as any;
+    const data = d.data() as ExcusedAbsenceDocument;
     const eventId = d.ref.parent.parent?.id || "";
     excused.push({
       id: d.id,
@@ -130,7 +136,7 @@ export async function fetchAdminData(): Promise<AdminData> {
       reason: data.reason || "",
       status: data.status || "pending",
     });
-    if (data.userId) userIds.add(data.userId as string);
+    if (data.userId) userIds.add(data.userId);
   });
 
   const userDetails = new Map<string, { name: string; email: string }>();
@@ -138,7 +144,7 @@ export async function fetchAdminData(): Promise<AdminData> {
     Array.from(userIds).map(async (uid) => {
       const userSnap = await getDoc(doc(db, "users", uid));
       if (userSnap.exists()) {
-        const data = userSnap.data() as any;
+        const data = userSnap.data() as UserDocument;
         const name = `${data.firstName || ""} ${data.lastName || ""}`.trim() || "Member";
         const email = data.email || data.slackEmail || "";
         userDetails.set(uid, { name, email });
@@ -156,7 +162,7 @@ export async function fetchAdminData(): Promise<AdminData> {
 
   events.forEach((evt) => {
     const snap = eventsSnap.docs.find((d) => d.id === evt.id);
-    const data = snap?.data() as any;
+    const data = snap?.data() as EventDocument | undefined;
     const attendees: string[] = data?.attendees || [];
     evt.attendees = attendees.map((id) => {
       const details = userDetails.get(id);
@@ -213,6 +219,10 @@ export async function deleteEventById(eventId: string) {
   await deleteDoc(doc(db, "events", eventId));
 }
 
+export async function updateEventPixels(eventId: string, pixels: number) {
+  await updateDoc(doc(db, "events", eventId), { pixels: Number(pixels) || 0 });
+}
+
 export async function updateExcusedStatus(eventId: string, requestId: string, status: string) {
   await updateDoc(doc(db, "events", eventId, "excused_absences", requestId), { status });
 }
@@ -220,13 +230,13 @@ export async function updateExcusedStatus(eventId: string, requestId: string, st
 export async function addAttendee(eventId: string, userId: string) {
   await updateDoc(doc(db, "events", eventId), {
     attendees: arrayUnion(userId),
-  } as any);
+  });
 }
 
 export async function removeAttendee(eventId: string, userId: string) {
   await updateDoc(doc(db, "events", eventId), {
     attendees: arrayRemove(userId),
-  } as any);
+  });
 }
 
 export async function setAttendanceStatus(
@@ -236,14 +246,14 @@ export async function setAttendanceStatus(
 ) {
   const eventRef = doc(db, "events", eventId);
   if (status === "present") {
-    await updateDoc(eventRef, { attendees: arrayUnion(userId) } as any);
+    await updateDoc(eventRef, { attendees: arrayUnion(userId) });
     // remove excused if exists
     const excused = await getDocs(
       query(collection(eventRef, "excused_absences"), where("userId", "==", userId))
     );
     await Promise.all(excused.docs.map((d) => deleteDoc(d.ref)));
   } else if (status === "excused") {
-    await updateDoc(eventRef, { attendees: arrayRemove(userId) } as any);
+    await updateDoc(eventRef, { attendees: arrayRemove(userId) });
     const existing = await getDocs(
       query(collection(eventRef, "excused_absences"), where("userId", "==", userId))
     );
@@ -258,7 +268,7 @@ export async function setAttendanceStatus(
       await Promise.all(existing.docs.map((d) => updateDoc(d.ref, { status: "approved" })));
     }
   } else {
-    await updateDoc(eventRef, { attendees: arrayRemove(userId) } as any);
+    await updateDoc(eventRef, { attendees: arrayRemove(userId) });
     const existing = await getDocs(
       query(collection(eventRef, "excused_absences"), where("userId", "==", userId))
     );
@@ -269,7 +279,7 @@ export async function setAttendanceStatus(
 export async function fetchMembers(): Promise<MemberRecord[]> {
   const snap = await getDocs(query(collection(db, "users"), orderBy("pixelCached", "desc")));
   return snap.docs.map((d, idx) => {
-    const data = d.data() as any;
+    const data = d.data() as UserDocument;
     return {
       id: d.id,
       firstName: data.firstName || "",
@@ -321,7 +331,7 @@ export async function addAttendeesByEmail(eventId: string, emails: string[]) {
   if (foundIds.length) {
     await updateDoc(doc(db, "events", eventId), {
       attendees: arrayUnion(...foundIds),
-    } as any);
+    });
   }
   return foundIds;
 }
@@ -333,7 +343,7 @@ export async function fetchActivities(semesterId?: string): Promise<ActivityReco
     : query(base, orderBy("name", "asc"));
   const snap = await getDocs(q);
   return snap.docs.map((d) => {
-    const data = d.data() as any;
+    const data = d.data() as ActivityDocument;
     const multipliers = Object.entries(data.multipliers || {}).map(([userId, multiplier]) => ({
       userId,
       multiplier: Number(multiplier),
@@ -379,7 +389,7 @@ export async function deleteActivity(activityId: string) {
 export async function setActivityMultiplier(activityId: string, userId: string, multiplier: number) {
   await updateDoc(doc(db, "activities", activityId), {
     [`multipliers.${userId}`]: multiplier,
-  } as any);
+  });
 }
 
 export async function findUserIdByEmail(email: string): Promise<string | null> {
@@ -397,7 +407,7 @@ export async function fetchUserDetails(ids: string[]) {
     unique.map(async (id) => {
       const snap = await getDoc(doc(db, "users", id));
       if (snap.exists()) {
-        const data = snap.data() as any;
+        const data = snap.data() as UserDocument;
         const name = `${data.firstName || ""} ${data.lastName || ""}`.trim() || "Member";
         const email = data.email || data.slackEmail || "";
         details.set(id, { name, email });
