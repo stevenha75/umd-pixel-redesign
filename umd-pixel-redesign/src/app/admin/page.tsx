@@ -38,6 +38,7 @@ import {
 } from "@/lib/api";
 import { useQuery } from "@tanstack/react-query";
 import { Textarea } from "@/components/ui/textarea";
+import { Checkbox } from "@/components/ui/checkbox";
 
 type EventRow = {
   id: string;
@@ -85,6 +86,8 @@ export default function AdminPage() {
   const [attendeeEmails, setAttendeeEmails] = useState("");
   const [attendeeEventId, setAttendeeEventId] = useState<string | null>(null);
   const [eventSearch, setEventSearch] = useState("");
+  const [selectedEvents, setSelectedEvents] = useState<Set<string>>(new Set());
+  const [bulkPixels, setBulkPixels] = useState<number | "">("");
 
   const eventSchema = z.object({
     name: z.string().trim().min(1, "Name is required."),
@@ -321,6 +324,56 @@ export default function AdminPage() {
     }
   };
 
+  const toggleEventSelection = (id: string) => {
+    setSelectedEvents((prev) => {
+      const next = new Set(prev);
+      next.has(id) ? next.delete(id) : next.add(id);
+      return next;
+    });
+  };
+
+  const bulkDeleteEvents = async () => {
+    if (selectedEvents.size === 0) return;
+    setSaving(true);
+    setMessage(null);
+    try {
+      await Promise.all(Array.from(selectedEvents).map((id) => deleteEventById(id)));
+      setEvents((prev) => prev.filter((e) => !selectedEvents.has(e.id)));
+      setSelectedEvents(new Set());
+      setMessage("Events deleted.");
+    } catch (err) {
+      console.error(err);
+      setMessage("Failed bulk delete.");
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const bulkSetPixels = async () => {
+    if (selectedEvents.size === 0 || bulkPixels === "") return;
+    setSaving(true);
+    setMessage(null);
+    try {
+      await Promise.all(
+        Array.from(selectedEvents).map((id) =>
+          updateEventApi(id, { pixels: Number(bulkPixels), name: "", type: "", date: "" } as any)
+        )
+      );
+      setEvents((prev) =>
+        prev.map((evt) =>
+          selectedEvents.has(evt.id) ? { ...evt, pixels: Number(bulkPixels) } : evt
+        )
+      );
+      setBulkPixels("");
+      setMessage("Pixels updated.");
+    } catch (err) {
+      console.error(err);
+      setMessage("Failed bulk update.");
+    } finally {
+      setSaving(false);
+    }
+  };
+
   const sortedEvents = useMemo(() => {
     const copy = [...events];
     copy.sort((a, b) => {
@@ -484,6 +537,32 @@ export default function AdminPage() {
               </div>
             </CardHeader>
             <CardContent>
+              <div className="mb-4 flex flex-wrap items-center gap-3 text-sm">
+                <Input
+                  type="number"
+                  min={0}
+                  value={bulkPixels === "" ? "" : bulkPixels}
+                  onChange={(e) =>
+                    setBulkPixels(e.target.value === "" ? "" : Number(e.target.value))
+                  }
+                  placeholder="Set pixels"
+                  className="w-32"
+                />
+                <Button
+                  variant="outline"
+                  onClick={bulkSetPixels}
+                  disabled={saving || selectedEvents.size === 0 || bulkPixels === ""}
+                >
+                  Apply to selected
+                </Button>
+                <Button
+                  variant="destructive"
+                  onClick={bulkDeleteEvents}
+                  disabled={saving || selectedEvents.size === 0}
+                >
+                  Delete selected
+                </Button>
+              </div>
               {loading ? (
                 <p className="text-sm text-muted-foreground">Loading events…</p>
               ) : (
@@ -491,6 +570,19 @@ export default function AdminPage() {
                   <Table>
                     <TableHeader>
                       <TableRow>
+                        <TableHead>
+                          <Checkbox
+                            checked={
+                              selectedEvents.size > 0 &&
+                              selectedEvents.size === sortedEvents.length
+                            }
+                            onCheckedChange={(v) =>
+                              v
+                                ? setSelectedEvents(new Set(sortedEvents.map((e) => e.id)))
+                                : setSelectedEvents(new Set())
+                            }
+                          />
+                        </TableHead>
                         <TableHead>
                           <button
                             onClick={() => toggleSort("name")}
@@ -526,6 +618,12 @@ export default function AdminPage() {
                     <TableBody>
                       {sortedEvents.map((evt) => (
                         <TableRow key={evt.id}>
+                          <TableCell>
+                            <Checkbox
+                              checked={selectedEvents.has(evt.id)}
+                              onCheckedChange={() => toggleEventSelection(evt.id)}
+                            />
+                          </TableCell>
                           <TableCell className="text-foreground">{evt.name}</TableCell>
                           <TableCell className="text-muted-foreground">{evt.date}</TableCell>
                           <TableCell className="text-muted-foreground">{evt.type}</TableCell>

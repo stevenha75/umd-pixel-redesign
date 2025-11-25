@@ -9,6 +9,10 @@ import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Line } from "react-chartjs-2";
+import { Chart as ChartJS, LineElement, PointElement, LinearScale, CategoryScale, Tooltip, Legend } from "chart.js";
+
+ChartJS.register(LineElement, PointElement, LinearScale, CategoryScale, Tooltip, Legend);
 import { useQuery } from "@tanstack/react-query";
 import {
   MemberRecord,
@@ -147,6 +151,32 @@ export default function MembersPage() {
       };
     });
   }, [selectedMember, adminQuery.data]);
+
+  const pixelHistory = useMemo(() => {
+    if (!memberEvents.length) return null;
+    const sorted = [...memberEvents].sort(
+      (a, b) => new Date(a.date).getTime() - new Date(b.date).getTime()
+    );
+    let total = 0;
+    const points = sorted.map((evt) => {
+      if (evt.status === "Present" && evt.pixels > 0) {
+        total += evt.pixels;
+      }
+      return { date: evt.date, total };
+    });
+    return {
+      labels: points.map((p) => p.date),
+      datasets: [
+        {
+          label: "Pixels over time",
+          data: points.map((p) => p.total),
+          borderColor: "#000",
+          backgroundColor: "rgba(0,0,0,0.1)",
+          tension: 0.3,
+        },
+      ],
+    };
+  }, [memberEvents]);
 
   const cycleStatus = async (evtId: string, current: string, type: string) => {
     if (!selectedMember) return;
@@ -344,6 +374,18 @@ export default function MembersPage() {
                     <Button onClick={handleUpdateMember} disabled={saving}>
                       {saving ? "Saving…" : "Save changes"}
                     </Button>
+                    {pixelHistory && (
+                      <div className="rounded-lg border border-border p-3">
+                        <Line
+                          data={pixelHistory}
+                          options={{
+                            responsive: true,
+                            plugins: { legend: { display: false } },
+                            scales: { y: { beginAtZero: true } },
+                          }}
+                        />
+                      </div>
+                    )}
                     <div className="pt-4">
                       <div className="text-sm font-semibold text-foreground">Events</div>
                       <div className="overflow-x-auto">
