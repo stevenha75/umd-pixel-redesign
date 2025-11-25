@@ -56,9 +56,9 @@ Replicates `umd-pixel-old/pages/homePage.tsx` with modern UI.
     - [x] **Pixel Delta Notice**: Show delta if non-zero.
 
 - [ ] **Pixel Log Table**
-    - [ ] **Component**: `Table` from shadcn/ui.
+    - [x] **Component**: Table UI with pagination/sorting.
     - [x] **Columns**: Date, Name, Type, Attendance, Pixels Allocated, Pixels Earned.
-    - [x] **Pagination/Sorting**: Client-side pagination added; sorting TBD.
+    - [x] **Pagination/Sorting**: Client-side pagination and sorting.
 
 - [ ] **Manual Adjustment Section**
     - [ ] **Component**: `Card` or `Alert` component.
@@ -84,7 +84,6 @@ Replicates `umd-pixel-old/pages/homePage.tsx` with modern UI.
     - [x] Basic form validation/errors on create/edit event.
     - [x] Edit existing events inline (name/type/date/pixels).
     - [x] Delete events; sortable event table.
-    - [x] Display excused absence requests with event/user context and approve/reject actions.
 
 ### 4b. Member/Attendance Data Handling
 - [x] Fetch pixel log and leaderboard using Firestore queries equivalent to legacy logic (attended + pixels > 0; respect `pixelDelta/pixelCached`).

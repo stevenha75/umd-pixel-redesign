@@ -13,6 +13,7 @@ import { db } from "./firebase";
 
 export type PixelLogRow = {
   id: string;
+  eventId: string;
   date: string;
   name: string;
   type: string;
@@ -98,7 +99,8 @@ export async function fetchDashboardData(userId: string): Promise<DashboardData>
     if (pixelsEarned > 0) earnedPixels += pixelsEarned;
 
     pixelLog.push({
-      id: eventDoc.id,
+      id: `${eventDoc.id}-${userId}`,
+      eventId: eventDoc.id,
       date: eventDate.toLocaleDateString(),
       name: event.name || event.eventName || "Event",
       type: event.type || "event",

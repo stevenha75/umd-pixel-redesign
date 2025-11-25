@@ -9,15 +9,38 @@ const PAGE_SIZE = 10;
 
 export function PixelLogTable({ rows }: Props) {
   const [page, setPage] = useState(0);
+  const [sortKey, setSortKey] = useState<"date" | "name" | "pixels">("date");
+  const [sortDir, setSortDir] = useState<"asc" | "desc">("desc");
 
-  const totalPages = Math.max(1, Math.ceil(rows.length / PAGE_SIZE));
+  const sortedRows = useMemo(() => {
+    const copy = [...rows];
+    copy.sort((a, b) => {
+      const dir = sortDir === "asc" ? 1 : -1;
+      if (sortKey === "pixels") return dir * ((a.pixelsAllocated || 0) - (b.pixelsAllocated || 0));
+      if (sortKey === "name") return dir * a.name.localeCompare(b.name);
+      return dir * (new Date(a.date).getTime() - new Date(b.date).getTime());
+    });
+    return copy;
+  }, [rows, sortDir, sortKey]);
+
+  const totalPages = Math.max(1, Math.ceil(sortedRows.length / PAGE_SIZE));
   const pageRows = useMemo(() => {
     const start = page * PAGE_SIZE;
-    return rows.slice(start, start + PAGE_SIZE);
-  }, [page, rows]);
+    return sortedRows.slice(start, start + PAGE_SIZE);
+  }, [page, sortedRows]);
 
   const canPrev = page > 0;
   const canNext = page < totalPages - 1;
+
+  const toggleSort = (key: "date" | "name" | "pixels") => {
+    if (sortKey === key) {
+      setSortDir((d) => (d === "asc" ? "desc" : "asc"));
+    } else {
+      setSortKey(key);
+      setSortDir("desc");
+    }
+    setPage(0);
+  };
 
   return (
     <section className="rounded-2xl border border-zinc-200 bg-white p-6 shadow-sm">
@@ -51,10 +74,26 @@ export function PixelLogTable({ rows }: Props) {
           <thead className="bg-zinc-50 text-left text-zinc-600">
             <tr>
               <th className="px-3 py-2 font-medium">Date</th>
-              <th className="px-3 py-2 font-medium">Name</th>
+              <th className="px-3 py-2 font-medium">
+                <button
+                  onClick={() => toggleSort("name")}
+                  className="flex items-center gap-1"
+                  title="Sort by name"
+                >
+                  Name {sortKey === "name" ? (sortDir === "asc" ? "▲" : "▼") : ""}
+                </button>
+              </th>
               <th className="px-3 py-2 font-medium">Type</th>
               <th className="px-3 py-2 font-medium">Attendance</th>
-              <th className="px-3 py-2 font-medium text-right">Pixels Allocated</th>
+              <th className="px-3 py-2 font-medium text-right">
+                <button
+                  onClick={() => toggleSort("pixels")}
+                  className="flex w-full items-center justify-end gap-1"
+                  title="Sort by pixels"
+                >
+                  Pixels Allocated {sortKey === "pixels" ? (sortDir === "asc" ? "▲" : "▼") : ""}
+                </button>
+              </th>
               <th className="px-3 py-2 font-medium text-right">Pixels Earned</th>
             </tr>
           </thead>
