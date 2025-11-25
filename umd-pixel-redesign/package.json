@@ -9,13 +9,14 @@
     "lint": "eslint"
   },
   "dependencies": {
+    "@hookform/resolvers": "^3.9.1",
+    "@tanstack/react-query": "^5.59.16",
+    "@tanstack/react-query-devtools": "^5.59.16",
     "firebase": "^12.6.0",
     "next": "16.0.3",
+    "react-hook-form": "^7.53.2",
     "react": "19.2.0",
     "react-dom": "19.2.0",
-    "@tanstack/react-query": "^5.59.16",
-    "react-hook-form": "^7.53.2",
-    "@hookform/resolvers": "^3.9.1",
     "zod": "^3.23.8"
   },
   "devDependencies": {

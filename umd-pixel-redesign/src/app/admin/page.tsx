@@ -17,6 +17,9 @@ import {
   updateDoc,
 } from "firebase/firestore";
 import { db } from "@/lib/firebase";
+import { useForm } from "react-hook-form";
+import { z } from "zod";
+import { zodResolver } from "@hookform/resolvers/zod";
 
 type EventRow = {
   id: string;
@@ -49,13 +52,35 @@ export default function AdminPage() {
   const [events, setEvents] = useState<EventRow[]>([]);
   const [excused, setExcused] = useState<ExcusedRow[]>([]);
   const [loading, setLoading] = useState(true);
-  const [form, setForm] = useState(defaultEvent);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
   const [message, setMessage] = useState<string | null>(null);
-  const [errors, setErrors] = useState<Record<string, string>>({});
   const [sortKey, setSortKey] = useState<"date" | "name" | "pixels">("date");
   const [sortDir, setSortDir] = useState<"asc" | "desc">("desc");
+
+  const eventSchema = z.object({
+    name: z.string().trim().min(1, "Name is required."),
+    date: z.string().trim().min(1, "Date/time is required."),
+    type: z.string().trim(),
+    pixels: z
+      .number({
+        invalid_type_error: "Pixels must be a number.",
+      })
+      .min(0, "Pixels cannot be negative."),
+  });
+
+  type EventForm = z.infer<typeof eventSchema>;
+
+  const {
+    register,
+    handleSubmit,
+    reset,
+    formState: { errors },
+    setValue,
+  } = useForm<EventForm>({
+    resolver: zodResolver(eventSchema),
+    defaultValues: defaultEvent,
+  });
 
   useEffect(() => {
     const load = async () => {
@@ -73,38 +98,23 @@ export default function AdminPage() {
   }, []);
 
   const resetForm = () => {
-    setForm(defaultEvent);
+    reset(defaultEvent);
     setEditingId(null);
-    setErrors({});
   };
 
-  const onChange = (key: string, value: any) => {
-    setForm((f) => ({ ...f, [key]: value }));
-  };
-
-  const validateForm = () => {
-    const nextErrors: Record<string, string> = {};
-    if (!form.name.trim()) nextErrors.name = "Name is required.";
-    if (!form.date) nextErrors.date = "Date/time is required.";
-    if (form.pixels < 0) nextErrors.pixels = "Pixels cannot be negative.";
-    setErrors(nextErrors);
-    return Object.keys(nextErrors).length === 0;
-  };
-
-  const createEvent = async () => {
-    if (!validateForm()) return;
+  const createEvent = async (values: EventForm) => {
     setSaving(true);
     setMessage(null);
     try {
       const settingsSnap = await getDoc(doc(db, "settings", "global"));
       const currentSemesterId = settingsSnap.data()?.currentSemesterId;
-      const dateValue = form.date ? Timestamp.fromDate(new Date(form.date)) : Timestamp.now();
+      const dateValue = values.date ? Timestamp.fromDate(new Date(values.date)) : Timestamp.now();
       const newEvent = {
-        name: form.name,
+        name: values.name,
         semesterId: currentSemesterId || "",
         date: dateValue,
-        type: form.type,
-        pixels: Number(form.pixels) || 0,
+        type: values.type,
+        pixels: Number(values.pixels) || 0,
         attendees: [],
       };
       const created = await addDoc(collection(db, "events"), newEvent);
@@ -226,13 +236,10 @@ export default function AdminPage() {
 
   const startEdit = (evt: EventRow) => {
     setEditingId(evt.id);
-    setForm({
-      name: evt.name,
-      date: new Date(evt.date).toISOString().slice(0, 16),
-      type: evt.type,
-      pixels: evt.pixels,
-    });
-    setErrors({});
+    setValue("name", evt.name);
+    setValue("date", new Date(evt.date).toISOString().slice(0, 16));
+    setValue("type", evt.type);
+    setValue("pixels", evt.pixels);
   };
 
   const deleteEvent = async (evt: EventRow) => {
@@ -275,17 +282,16 @@ export default function AdminPage() {
     }
   };
 
-  const saveEdit = async () => {
+  const saveEdit = async (values: EventForm) => {
     if (!editingId) return;
-    if (!validateForm()) return;
     setSaving(true);
     setMessage(null);
     try {
-      const dateValue = form.date ? Timestamp.fromDate(new Date(form.date)) : Timestamp.now();
+      const dateValue = values.date ? Timestamp.fromDate(new Date(values.date)) : Timestamp.now();
       await updateDoc(doc(db, "events", editingId), {
-        name: form.name,
-        type: form.type,
-        pixels: Number(form.pixels) || 0,
+        name: values.name,
+        type: values.type,
+        pixels: Number(values.pixels) || 0,
         date: dateValue,
       });
       setEvents((prev) =>
@@ -293,9 +299,9 @@ export default function AdminPage() {
           evt.id === editingId
             ? {
                 ...evt,
-                name: form.name,
-                type: form.type,
-                pixels: Number(form.pixels) || 0,
+                name: values.name,
+                type: values.type,
+                pixels: Number(values.pixels) || 0,
                 date: dateValue.toDate().toLocaleDateString(),
               }
             : evt
@@ -324,33 +330,33 @@ export default function AdminPage() {
 
           <section className="rounded-2xl border border-zinc-200 bg-white p-6 shadow-sm">
             <h2 className="text-lg font-semibold text-zinc-900">Create event</h2>
-            <div className="mt-4 grid gap-4 md:grid-cols-2">
+            <form
+              className="mt-4 grid gap-4 md:grid-cols-2"
+              onSubmit={handleSubmit(editingId ? saveEdit : createEvent)}
+            >
               <label className="flex flex-col gap-2 text-sm text-zinc-700">
                 Name
                 <input
                   className="rounded-lg border border-zinc-300 px-3 py-2"
-                  value={form.name}
-                  onChange={(e) => onChange("name", e.target.value)}
                   placeholder="Event name"
+                  {...register("name")}
                 />
-                {errors.name && <span className="text-xs text-rose-600">{errors.name}</span>}
+                {errors.name && <span className="text-xs text-rose-600">{errors.name.message}</span>}
               </label>
               <label className="flex flex-col gap-2 text-sm text-zinc-700">
                 Date
                 <input
                   type="datetime-local"
                   className="rounded-lg border border-zinc-300 px-3 py-2"
-                  value={form.date}
-                  onChange={(e) => onChange("date", e.target.value)}
+                  {...register("date")}
                 />
-                {errors.date && <span className="text-xs text-rose-600">{errors.date}</span>}
+                {errors.date && <span className="text-xs text-rose-600">{errors.date.message}</span>}
               </label>
               <label className="flex flex-col gap-2 text-sm text-zinc-700">
                 Type
                 <select
                   className="rounded-lg border border-zinc-300 px-3 py-2"
-                  value={form.type}
-                  onChange={(e) => onChange("type", e.target.value)}
+                  {...register("type")}
                 >
                   <option value="GBM">GBM</option>
                   <option value="other_mandatory">Other Mandatory</option>
@@ -367,39 +373,40 @@ export default function AdminPage() {
                 <input
                   type="number"
                   className="rounded-lg border border-zinc-300 px-3 py-2"
-                  value={form.pixels}
-                  onChange={(e) => onChange("pixels", Number(e.target.value))}
                   min={0}
+                  {...register("pixels", { valueAsNumber: true })}
                 />
-                {errors.pixels && <span className="text-xs text-rose-600">{errors.pixels}</span>}
+                {errors.pixels && <span className="text-xs text-rose-600">{errors.pixels.message}</span>}
               </label>
-            </div>
-            <div className="mt-4 flex flex-wrap items-center gap-3">
-              <button
-                onClick={editingId ? saveEdit : createEvent}
-                disabled={saving}
-                className="rounded-full bg-black px-4 py-2 text-sm font-medium text-white hover:bg-zinc-800 disabled:opacity-60"
-              >
-                {saving ? "Saving…" : editingId ? "Save changes" : "Create event"}
-              </button>
-              {editingId && (
+              <div className="col-span-full mt-2 flex flex-wrap items-center gap-3">
                 <button
-                  onClick={resetForm}
+                  type="submit"
+                  disabled={saving}
+                  className="rounded-full bg-black px-4 py-2 text-sm font-medium text-white hover:bg-zinc-800 disabled:opacity-60"
+                >
+                  {saving ? "Saving…" : editingId ? "Save changes" : "Create event"}
+                </button>
+                {editingId && (
+                  <button
+                    type="button"
+                    onClick={resetForm}
+                    disabled={saving}
+                    className="rounded-full border border-zinc-300 px-4 py-2 text-sm font-medium text-zinc-800 hover:bg-zinc-50 disabled:opacity-60"
+                  >
+                    Cancel
+                  </button>
+                )}
+                <button
+                  type="button"
+                  onClick={() => refreshEvents()}
                   disabled={saving}
                   className="rounded-full border border-zinc-300 px-4 py-2 text-sm font-medium text-zinc-800 hover:bg-zinc-50 disabled:opacity-60"
                 >
-                  Cancel
+                  Refresh events
                 </button>
-              )}
-              <button
-                onClick={() => refreshEvents()}
-                disabled={saving}
-                className="rounded-full border border-zinc-300 px-4 py-2 text-sm font-medium text-zinc-800 hover:bg-zinc-50 disabled:opacity-60"
-              >
-                Refresh events
-              </button>
-              {message && <span className="text-sm text-zinc-600">{message}</span>}
-            </div>
+                {message && <span className="text-sm text-zinc-600">{message}</span>}
+              </div>
+            </form>
           </section>
 
           <section className="rounded-2xl border border-zinc-200 bg-white p-6 shadow-sm">

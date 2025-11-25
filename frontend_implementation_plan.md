@@ -78,7 +78,7 @@ Replicates `umd-pixel-old/pages/homePage.tsx` with modern UI.
     - [x] `Button` "Create Event" -> Opens `Dialog` or redirects to page.
 - [ ] **Forms**
     - [ ] Use `Input`, `Select`, `Button` for creating/editing events.
-    - [ ] Validate with Zod; submit via Functions/Firestore.
+    - [x] Validate with Zod + React Hook Form; submit via Functions/Firestore.
     - [x] Excused absence approval flow (status chip + action).
     - [x] Display excused absence requests with event/user context and approve/reject actions.
     - [x] Basic form validation/errors on create/edit event.

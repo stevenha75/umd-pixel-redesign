@@ -77,6 +77,7 @@ Use this checklist to track your progress through the migration.
     - [x] Install Firebase SDK in Next.js app.
     - [x] Create `lib/firebase.ts` context/hook.
     - [x] Add Query client/provider for data fetching.
+    - [x] Add React Hook Form + Zod for admin event forms.
 - [ ] **Pages & Components**
     - [ ] Build **Navbar** (Responsive).
     - [ ] Build **Dashboard** (Show current pixels).
