@@ -11,6 +11,7 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Line } from "react-chartjs-2";
 import { Chart as ChartJS, LineElement, PointElement, LinearScale, CategoryScale, Tooltip, Legend } from "chart.js";
+import { CsvExportButton } from "@/components/export/CsvExportButton";
 
 ChartJS.register(LineElement, PointElement, LinearScale, CategoryScale, Tooltip, Legend);
 import { useQuery } from "@tanstack/react-query";
@@ -230,6 +231,15 @@ export default function MembersPage() {
                     <SelectItem value="name">Name</SelectItem>
                   </SelectContent>
                 </Select>
+                <CsvExportButton
+                  filename="members.csv"
+                  rows={members.map((m) => ({
+                    name: `${m.firstName} ${m.lastName}`,
+                    email: m.email,
+                    pixels: m.pixels,
+                    rank: m.rank ?? "",
+                  }))}
+                />
               </div>
             </CardHeader>
             <CardContent className="space-y-4">

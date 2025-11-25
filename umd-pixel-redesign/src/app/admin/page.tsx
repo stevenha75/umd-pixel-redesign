@@ -24,6 +24,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { CsvExportButton } from "@/components/export/CsvExportButton";
 import {
   AdminData,
   EventInput,
@@ -565,6 +566,16 @@ export default function AdminPage() {
                   value={eventSearch}
                   onChange={(e) => setEventSearch(e.target.value)}
                   className="md:w-56"
+                />
+                <CsvExportButton
+                  filename="events.csv"
+                  rows={sortedEvents.map((evt) => ({
+                    name: evt.name,
+                    date: evt.date,
+                    type: evt.type,
+                    pixels: evt.pixels,
+                    attendees: evt.attendeesCount,
+                  }))}
                 />
                 <span className="text-sm text-muted-foreground">{events.length} total</span>
               </div>

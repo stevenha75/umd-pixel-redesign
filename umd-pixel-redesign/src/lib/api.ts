@@ -389,3 +389,20 @@ export async function findUserIdByEmail(email: string): Promise<string | null> {
   if (snap.empty) return null;
   return snap.docs[0].id;
 }
+
+export async function fetchUserDetails(ids: string[]) {
+  const unique = Array.from(new Set(ids));
+  const details = new Map<string, { name: string; email: string }>();
+  await Promise.all(
+    unique.map(async (id) => {
+      const snap = await getDoc(doc(db, "users", id));
+      if (snap.exists()) {
+        const data = snap.data() as any;
+        const name = `${data.firstName || ""} ${data.lastName || ""}`.trim() || "Member";
+        const email = data.email || data.slackEmail || "";
+        details.set(id, { name, email });
+      }
+    })
+  );
+  return details;
+}

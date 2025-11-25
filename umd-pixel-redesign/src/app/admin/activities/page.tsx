@@ -18,6 +18,7 @@ import {
   setActivityMultiplier,
   updateActivity,
   findUserIdByEmail,
+  fetchUserDetails,
 } from "@/lib/api";
 
 export default function ActivitiesPage() {
@@ -30,6 +31,16 @@ export default function ActivitiesPage() {
     },
     enabled: !!adminQuery.data,
   });
+
+  const [multiplierDetails, setMultiplierDetails] = useState<Map<string, { name: string; email: string }>>(new Map());
+
+  const loadMultiplierDetails = async (activityId: string) => {
+    const activity = activitiesQuery.data?.find((a) => a.id === activityId);
+    if (!activity) return;
+    const ids = activity.multipliers.map((m) => m.userId);
+    const details = await fetchUserDetails(ids);
+    setMultiplierDetails(details);
+  };
 
   const [form, setForm] = useState({ name: "", type: "coffee_chat", pixels: 0 });
   const [editingId, setEditingId] = useState<string | null>(null);
@@ -224,7 +235,13 @@ export default function ActivitiesPage() {
               <CardDescription>Set multiplier per member for an activity.</CardDescription>
             </CardHeader>
             <CardContent className="space-y-3">
-              <Select value={targetActivity || ""} onValueChange={(v) => setTargetActivity(v)}>
+                  <Select
+                    value={targetActivity || ""}
+                    onValueChange={async (v) => {
+                      setTargetActivity(v);
+                      await loadMultiplierDetails(v);
+                    }}
+                  >
                 <SelectTrigger className="w-64">
                   <SelectValue placeholder="Select activity" />
                 </SelectTrigger>
@@ -259,22 +276,31 @@ export default function ActivitiesPage() {
                     <TableHeader>
                       <TableRow>
                         <TableHead>User</TableHead>
+                        <TableHead>Email</TableHead>
                         <TableHead className="text-right">Multiplier</TableHead>
                       </TableRow>
                     </TableHeader>
                     <TableBody>
                       {activitiesQuery.data
                         ?.find((a) => a.id === targetActivity)
-                        ?.multipliers.map((m) => (
-                          <TableRow key={m.userId}>
-                            <TableCell className="text-foreground">{m.userId}</TableCell>
-                            <TableCell className="text-right text-muted-foreground">
-                              {m.multiplier}
-                            </TableCell>
-                          </TableRow>
-                        )) ?? (
+                        ?.multipliers.map((m) => {
+                          const details = multiplierDetails.get(m.userId);
+                          return (
+                            <TableRow key={m.userId}>
+                              <TableCell className="text-foreground">
+                                {details?.name || m.userId}
+                              </TableCell>
+                              <TableCell className="text-muted-foreground">
+                                {details?.email || ""}
+                              </TableCell>
+                              <TableCell className="text-right text-muted-foreground">
+                                {m.multiplier}
+                              </TableCell>
+                            </TableRow>
+                          );
+                        }) ?? (
                         <TableRow>
-                          <TableCell colSpan={2} className="py-4 text-center text-muted-foreground">
+                          <TableCell colSpan={3} className="py-4 text-center text-muted-foreground">
                             No multipliers yet.
                           </TableCell>
                         </TableRow>
