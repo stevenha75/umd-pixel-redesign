@@ -44,3 +44,13 @@ next-env.d.ts
 functions/lib
 functions/node_modules
 functions/.tsbuildinfo
+
+# firebase local artifacts
+.firebase
+
+# docs to ignore
+AGENTS.md
+CLAUDE.md
+../AGENTS.md
+../CLAUDE.md
+.claude
