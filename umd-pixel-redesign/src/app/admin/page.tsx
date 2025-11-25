@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useState } from "react";
 import { ProtectedRoute } from "@/components/ProtectedRoute";
-import Navbar from "@/components/Navbar";
+import { AdminLayout } from "@/components/admin/AdminLayout";
 import {
   Timestamp,
   addDoc,
@@ -313,17 +313,16 @@ export default function AdminPage() {
 
   return (
     <ProtectedRoute requireAdmin>
-      <Navbar />
-      <main className="bg-zinc-50">
-        <div className="mx-auto max-w-5xl px-4 py-10">
-          <div className="mb-6 flex flex-col gap-2">
+      <AdminLayout>
+        <div className="flex flex-col gap-6 pb-10">
+          <div className="flex flex-col gap-2">
             <h1 className="text-2xl font-semibold text-zinc-900">Admin Dashboard</h1>
             <p className="text-sm text-zinc-600">
               Manage events, pixels, and attendance. Mirrors legacy admin flows with a modern UI.
             </p>
           </div>
 
-          <section className="mb-6 rounded-2xl border border-zinc-200 bg-white p-6 shadow-sm">
+          <section className="rounded-2xl border border-zinc-200 bg-white p-6 shadow-sm">
             <h2 className="text-lg font-semibold text-zinc-900">Create event</h2>
             <div className="mt-4 grid gap-4 md:grid-cols-2">
               <label className="flex flex-col gap-2 text-sm text-zinc-700">

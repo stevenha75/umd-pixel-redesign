@@ -34,7 +34,7 @@ Recreate the user interface for Members and Admins with feature parity to `umd-p
     - [ ] `input`, `label`, `select`, `textarea`, `form`, `dialog`
     - [ ] `toast` for notifications, `badge` for status chips
 - [ ] **Data Layer**
-    - [ ] Add TanStack Query provider at root; hydration boundary for SSR data.
+    - [x] Add TanStack Query provider at root; hydration boundary for SSR data.
     - [ ] Create typed API client for Firestore/Functions calls.
 - [ ] **Auth Wrapper**
     - [x] Protect routes with `AuthProvider` + redirect for unauthenticated users.
@@ -72,7 +72,7 @@ Replicates `umd-pixel-old/pages/homePage.tsx` with modern UI.
 
 ### 4. Admin Portal (`src/app/admin/...`)
 - [ ] **Admin Layout**
-    - [ ] Sidebar using `Button` variants for navigation.
+    - [x] Sidebar using Tailwind layout for navigation.
 - [x] **Events Management**
     - [x] `Table` listing events (name, date/time, type, pixels, attendees count).
     - [x] `Button` "Create Event" -> Opens `Dialog` or redirects to page.
