@@ -1,13 +1,27 @@
 # Frontend Implementation Plan (Phase 6)
 
-This plan outlines the steps to rebuild the frontend of `umd-pixel-redesign` using Next.js 14+ (App Router), Tailwind CSS, and **shadcn/ui**. It is designed to ensure **strict alignment** with the legacy `umd-pixel-old` application while using modern components.
+Comprehensive plan to rebuild the frontend of `umd-pixel-redesign` using Next.js App Router, Tailwind CSS, and **shadcn/ui**, while matching legacy functionality from `umd-pixel-old` and modernizing UX.
 
 ## Goal
-Recreate the user interface for Members and Admins with feature parity, connecting to the new Firebase backend.
+Recreate the user interface for Members and Admins with feature parity to `umd-pixel-old`, while modernizing UX and wiring to Firebase.
 
-## User Review Required
-> [!IMPORTANT]
-> I will be using **shadcn/ui** for components. This requires running `npx shadcn-ui@latest init` and adding specific components.
+## Parity Targets (what must match old app)
+- Auth flow: Slack sign-in, redirect, cookie-equivalent session via Firebase Auth.
+- Member dashboard: pixel total (cached), pixel delta notice, pixel log table (date/name/type/attendance/pixels allocated/earned), and leaderboard (top 10, gated by `isLeadershipOn`).
+- Admin capabilities: create/edit events (name, semester, date/time, type, pixels, attendees), manage excused absences (approve/reject), and apply pixel delta.
+- Settings usage: respect `settings/global` for current semester and leaderboard visibility.
+
+## Tech Stack (recommended, keep it simple)
+- UI: Tailwind CSS + **shadcn/ui** (low-overhead, easy theming) — replace legacy NextUI/MUI.
+- Data (optional): **TanStack Query** if we need caching; otherwise use direct Firestore/Functions calls to stay lean.
+- Forms: **React Hook Form** + **Zod** only where inputs are non-trivial; simple forms can use basic handlers.
+- Icons: `lucide-react` for a small, modern icon set.
+- Keep dependencies minimal; prefer built-in Next.js patterns where possible.
+
+### Notes on tool choices
+- Staying with legacy component libs is possible but adds bloat and mixed styling; shadcn + Tailwind is lighter and easier to maintain.
+- TanStack Query improves data caching/optimistic updates but adds complexity; skip it if read patterns are simple.
+- React Hook Form + Zod give typed validation; for tiny forms, plain controlled inputs are acceptable.
 
 ## Implementation Checklist
 
@@ -16,13 +30,14 @@ Recreate the user interface for Members and Admins with feature parity, connecti
     - [ ] Run `npx shadcn-ui@latest init`.
     - [ ] Configure `components.json` (Style: Default, Color: Slate, CSS Variables: Yes).
 - [ ] **Install Components**
-    - [ ] `button` (for Navbar, Actions)
-    - [ ] `table` (for Pixel Log, Leaderboard)
-    - [ ] `card` (for Dashboard sections)
-    - [ ] `avatar` (for User Profile)
-    - [ ] `dropdown-menu` (for User Menu)
-    - [ ] `input`, `label`, `select` (for Admin Forms)
-    - [ ] `toast` (for notifications)
+    - [ ] `button`, `card`, `table`, `avatar`, `dropdown-menu`
+    - [ ] `input`, `label`, `select`, `textarea`, `form`, `dialog`
+    - [ ] `toast` for notifications, `badge` for status chips
+- [ ] **Data Layer**
+    - [ ] Add TanStack Query provider at root; hydration boundary for SSR data.
+    - [ ] Create typed API client for Firestore/Functions calls.
+- [ ] **Auth Wrapper**
+    - [ ] Protect routes with `AuthProvider` + redirect for unauthenticated users.
 
 ### 2. Core Components
 - [ ] **Navbar** (`src/components/Navbar.tsx`)
@@ -32,17 +47,18 @@ Recreate the user interface for Members and Admins with feature parity, connecti
     - [ ] **Responsive**: Mobile menu for smaller screens.
 
 ### 3. Dashboard Page (`src/app/page.tsx`)
-Replicates `umd-pixel-old/pages/homePage.tsx`.
+Replicates `umd-pixel-old/pages/homePage.tsx` with modern UI.
 
 - [ ] **Header Section**
     - [ ] **Welcome Message**: "Welcome, {firstName} {lastName}!"
     - [ ] **Pixel Summary**: `Card` displaying "You have {pixels} pixels".
     - [ ] **Email Info**: Text display.
+    - [ ] **Pixel Delta Notice**: Show delta if non-zero.
 
 - [ ] **Pixel Log Table**
     - [ ] **Component**: `Table` from shadcn/ui.
     - [ ] **Columns**: Date, Name, Type, Attendance, Pixels Allocated, Pixels Earned.
-    - [ ] **Pagination**: Implement simple pagination controls.
+    - [ ] **Pagination/Sorting**: Client-side via TanStack Table utilities.
 
 - [ ] **Manual Adjustment Section**
     - [ ] **Component**: `Card` or `Alert` component.
@@ -52,19 +68,39 @@ Replicates `umd-pixel-old/pages/homePage.tsx`.
     - [ ] **Condition**: Check `settings/global` -> `isLeadershipOn`.
     - [ ] **Component**: `Table`.
     - [ ] **Content**: Top 10 users.
+    - [ ] **Empty State**: If disabled, show hint.
 
 ### 4. Admin Portal (`src/app/admin/...`)
 - [ ] **Admin Layout**
     - [ ] Sidebar using `Button` variants for navigation.
 - [ ] **Events Management**
-    - [ ] `Table` listing events.
+    - [ ] `Table` listing events (name, date/time, type, pixels, attendees count).
     - [ ] `Button` "Create Event" -> Opens `Dialog` or redirects to page.
 - [ ] **Forms**
     - [ ] Use `Input`, `Select`, `Button` for creating/editing events.
+    - [ ] Validate with Zod; submit via Functions/Firestore.
+    - [ ] Excused absence approval flow (status chip + action).
+
+### 4b. Member/Attendance Data Handling
+- [ ] Fetch pixel log and leaderboard using Firestore queries equivalent to legacy logic (attended + pixels > 0; respect `pixelDelta/pixelCached`).
+- [ ] Ensure excused absences remove pixel credit (parity with old app).
+- [ ] Sync current semester from `settings/global`.
+
+### 5. Routing & Auth States
+- [ ] Public: `/login`, `/auth/callback`.
+- [ ] Protected: `/`, `/admin`, `/admin/events`.
+- [ ] Loading and unauthorized states handled consistently (skeleton/spinner + redirect).
+
+### 6. Theming & UX
+- [ ] Define Tailwind theme tokens for primary/secondary, background, border radius to match branding.
+- [ ] Add light mode by default; optional dark mode toggle if desired.
+- [ ] Use consistent spacing/typography; avoid default Next.js styles.
 
 ## Verification Plan
 
 ### Manual Verification Steps
-1.  **UI Consistency**: Verify shadcn components look cohesive.
-2.  **Functionality**: Test all interactive elements (buttons, dropdowns, inputs).
-3.  **Responsiveness**: Ensure tables and navbar adapt to mobile.
+1. **Auth Flow**: Login via Slack, redirect back, see dashboard.
+2. **Data Parity**: Pixel totals/leaderboard match legacy logic for the same data.
+3. **Admin Actions**: Create/edit event and approve excused absence; verify pixel cache updates.
+4. **UI Consistency**: Cohesive styling, spacing, and responsive tables/navbar.
+5. **Accessibility**: Keyboard nav and focus states on menus, dialogs, and forms.
