@@ -7,12 +7,23 @@ if (!admin.apps.length) {
     admin.initializeApp();
 }
 
-// Placeholders for Slack Credentials - User to fill these in
-const SLACK_CLIENT_ID = "PLACEHOLDER_SLACK_CLIENT_ID";
-const SLACK_CLIENT_SECRET = "PLACEHOLDER_SLACK_CLIENT_SECRET";
+const SLACK_CLIENT_ID = process.env.SLACK_CLIENT_ID;
+const SLACK_CLIENT_SECRET = process.env.SLACK_CLIENT_SECRET;
+const SLACK_TEAM_ID = process.env.SLACK_TEAM_ID;
+
+function assertSlackConfig() {
+    if (!SLACK_CLIENT_ID || !SLACK_CLIENT_SECRET) {
+        throw new functions.https.HttpsError(
+            "failed-precondition",
+            "Slack OAuth env vars missing (SLACK_CLIENT_ID / SLACK_CLIENT_SECRET)."
+        );
+    }
+}
 
 export const authWithSlack = functions.https.onCall(async (data, context) => {
     const { code, redirectUri } = data;
+
+    assertSlackConfig();
 
     if (!code) {
         throw new functions.https.HttpsError(
@@ -39,6 +50,13 @@ export const authWithSlack = functions.https.onCall(async (data, context) => {
             throw new functions.https.HttpsError(
                 "unauthenticated",
                 `Slack OAuth failed: ${tokenResponse.data.error}`
+            );
+        }
+
+        if (SLACK_TEAM_ID && tokenResponse.data.team?.id && tokenResponse.data.team.id !== SLACK_TEAM_ID) {
+            throw new functions.https.HttpsError(
+                "permission-denied",
+                "User is not part of the allowed Slack workspace."
             );
         }
 
@@ -71,6 +89,7 @@ export const authWithSlack = functions.https.onCall(async (data, context) => {
         const userDoc = await userRef.get();
 
         let isAdmin = false;
+        let pixelDelta = 0;
 
         if (!userDoc.exists) {
             await userRef.set({
@@ -80,12 +99,14 @@ export const authWithSlack = functions.https.onCall(async (data, context) => {
                 slackId: slackUserId,
                 isAdmin: false,
                 pixels: 0,
+                pixelCached: 0,
                 pixelDelta: 0,
                 createdAt: admin.firestore.FieldValue.serverTimestamp(),
             });
         } else {
             const userData = userDoc.data();
             isAdmin = userData?.isAdmin || false;
+            pixelDelta = userData?.pixelDelta ?? userData?.pixeldelta ?? 0;
             await userRef.update({
                 firstName,
                 lastName,
@@ -96,6 +117,7 @@ export const authWithSlack = functions.https.onCall(async (data, context) => {
 
         const customToken = await admin.auth().createCustomToken(slackUserId, {
             isAdmin: isAdmin,
+            pixelDelta,
         });
 
         return { token: customToken };
@@ -173,7 +195,7 @@ async function recalculateUserPixels(userId: string) {
 
     const userDoc = await db.collection("users").doc(userId).get();
     if (!userDoc.exists) return;
-    const pixelDelta = userDoc.data()?.pixelDelta || 0;
+    const pixelDelta = userDoc.data()?.pixelDelta ?? userDoc.data()?.pixeldelta ?? 0;
 
     let totalPixels = pixelDelta;
 
@@ -210,12 +232,13 @@ async function recalculateUserPixels(userId: string) {
         const pixels = eventData.pixels || 0;
 
         // Only count pixels if user attended AND is not excused
-        if (attendees.includes(userId) && !excusedEventIds.has(doc.id)) {
+        if (attendees.includes(userId) && !excusedEventIds.has(doc.id) && pixels > 0) {
             totalPixels += pixels;
         }
     });
 
     await db.collection("users").doc(userId).update({
         pixels: totalPixels,
+        pixelCached: totalPixels,
     });
 }

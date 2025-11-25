@@ -8,8 +8,8 @@ export default function LoginPage() {
     const { user, loading } = useAuth();
     const router = useRouter();
 
-    // Placeholder Client ID - User needs to replace this
-    const SLACK_CLIENT_ID = "PLACEHOLDER_SLACK_CLIENT_ID";
+    const SLACK_CLIENT_ID = process.env.NEXT_PUBLIC_SLACK_CLIENT_ID;
+    const SLACK_REDIRECT_URI = process.env.NEXT_PUBLIC_SLACK_REDIRECT_URI;
     useEffect(() => {
         if (!loading && user) {
             router.push("/");
@@ -17,7 +17,13 @@ export default function LoginPage() {
     }, [user, loading, router]);
 
     const handleLogin = () => {
-        const redirectUri = `${window.location.origin}/auth/callback`;
+        if (!SLACK_CLIENT_ID) {
+            alert("Slack client ID is not configured.");
+            return;
+        }
+
+        const redirectUri =
+            SLACK_REDIRECT_URI || `${window.location.origin}/auth/callback`;
         const slackAuthUrl = `https://slack.com/oauth/v2/authorize?client_id=${SLACK_CLIENT_ID}&user_scope=identity.basic,identity.email,identity.avatar&redirect_uri=${encodeURIComponent(redirectUri)}`;
         window.location.href = slackAuthUrl;
     };
