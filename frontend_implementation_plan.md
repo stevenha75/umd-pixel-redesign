@@ -26,16 +26,16 @@ Recreate the user interface for Members and Admins with feature parity to `umd-p
 ## Implementation Checklist
 
 ### 1. Setup & Configuration
-- [ ] **Initialize shadcn/ui**
-    - [ ] Run `npx shadcn-ui@latest init`.
-    - [ ] Configure `components.json` (Style: Default, Color: Slate, CSS Variables: Yes).
-- [ ] **Install Components**
-    - [ ] `button`, `card`, `table`, `avatar`, `dropdown-menu`
-    - [ ] `input`, `label`, `select`, `textarea`, `form`, `dialog`
-    - [ ] `toast` for notifications, `badge` for status chips
-- [ ] **Data Layer**
+- [x] **Initialize shadcn/ui**
+    - [x] Run `npx shadcn@latest init`.
+    - [x] Configure `components.json` (Style: Default, Color: Neutral, CSS Variables: Yes).
+- [x] **Install Components**
+    - [x] `button`, `card`, `table`, `avatar`, `dropdown-menu`
+    - [x] `input`, `label`, `select`, `textarea`, `dialog`
+    - [x] `badge`, `sonner` (toast replacement)
+- [x] **Data Layer**
     - [x] Add TanStack Query provider at root; hydration boundary for SSR data.
-    - [ ] Create typed API client for Firestore/Functions calls.
+    - [x] Create typed API client for Firestore/Functions calls.
 - [ ] **Auth Wrapper**
     - [x] Protect routes with `AuthProvider` + redirect for unauthenticated users.
 
@@ -77,7 +77,7 @@ Replicates `umd-pixel-old/pages/homePage.tsx` with modern UI.
     - [x] `Table` listing events (name, date/time, type, pixels, attendees count).
     - [x] `Button` "Create Event" -> Opens `Dialog` or redirects to page.
 - [ ] **Forms**
-    - [ ] Use `Input`, `Select`, `Button` for creating/editing events.
+    - [x] Use `Input`, `Select`, `Button` for creating/editing events.
     - [x] Validate with Zod + React Hook Form; submit via Functions/Firestore.
     - [x] Excused absence approval flow (status chip + action).
     - [x] Display excused absence requests with event/user context and approve/reject actions.
@@ -96,9 +96,9 @@ Replicates `umd-pixel-old/pages/homePage.tsx` with modern UI.
 - [x] Loading and unauthorized states handled consistently (skeleton/spinner + redirect).
 
 ### 6. Theming & UX
-- [ ] Define Tailwind theme tokens for primary/secondary, background, border radius to match branding.
-- [ ] Add light mode by default; optional dark mode toggle if desired.
-- [ ] Use consistent spacing/typography; avoid default Next.js styles.
+- [x] Define Tailwind theme tokens for primary/secondary, background, border radius (shadcn neutral theme).
+- [x] Light mode by default; dark mode supported via CSS variables.
+- [x] Consistent spacing/typography via shadcn components and Tailwind layout.
 
 ## Verification Plan
 
