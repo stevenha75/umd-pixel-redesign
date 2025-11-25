@@ -237,8 +237,41 @@ async function recalculateUserPixels(userId: string) {
         }
     });
 
+    // Activities: pixels * multiplier
+    const activitiesSnapshot = await db.collection("activities")
+        .where("semesterId", "==", currentSemesterId)
+        .get();
+
+    activitiesSnapshot.forEach((doc) => {
+        const data = doc.data();
+        const multipliers = data.multipliers || {};
+        const multiplier = multipliers[userId];
+        if (multiplier && data.pixels) {
+            totalPixels += data.pixels * multiplier;
+        }
+    });
+
     await db.collection("users").doc(userId).update({
         pixels: totalPixels,
         pixelCached: totalPixels,
     });
 }
+
+/**
+ * Trigger: onActivityUpdate
+ * Recalculate pixels for users affected by multipliers.
+ */
+export const onActivityUpdate = functions.firestore
+    .document("activities/{activityId}")
+    .onWrite(async (change, context) => {
+        const before = change.before.exists ? change.before.data() : null;
+        const after = change.after.exists ? change.after.data() : null;
+        const userIds = new Set<string>();
+        if (before?.multipliers) {
+            Object.keys(before.multipliers).forEach((id) => userIds.add(id));
+        }
+        if (after?.multipliers) {
+            Object.keys(after.multipliers).forEach((id) => userIds.add(id));
+        }
+        await Promise.all(Array.from(userIds).map((uid) => recalculateUserPixels(uid)));
+    });
