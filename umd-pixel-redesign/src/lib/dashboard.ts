@@ -38,6 +38,7 @@ export type DashboardData = {
   leaderboard: LeaderboardRow[];
   leaderboardEnabled: boolean;
   activities: ActivityRow[];
+  rank?: number;
 };
 
 export type ActivityRow = {
