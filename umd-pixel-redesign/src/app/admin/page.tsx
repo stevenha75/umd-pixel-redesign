@@ -32,6 +32,8 @@ import {
   fetchAdminData,
   updateEvent as updateEventApi,
   updateExcusedStatus as apiUpdateExcusedStatus,
+  addAttendee,
+  removeAttendee,
 } from "@/lib/api";
 import { useQuery } from "@tanstack/react-query";
 
@@ -42,6 +44,11 @@ type EventRow = {
   type: string;
   pixels: number;
   attendeesCount: number;
+  attendees: {
+    id: string;
+    name: string;
+    email: string;
+  }[];
 };
 
 type ExcusedRow = {
@@ -72,6 +79,8 @@ export default function AdminPage() {
   const [sortKey, setSortKey] = useState<"date" | "name" | "pixels">("date");
   const [sortDir, setSortDir] = useState<"asc" | "desc">("desc");
   const [currentSemesterId, setCurrentSemesterId] = useState<string | null>(null);
+  const [attendeeInput, setAttendeeInput] = useState("");
+  const [attendeeEventId, setAttendeeEventId] = useState<string | null>(null);
 
   const eventSchema = z.object({
     name: z.string().trim().min(1, "Name is required."),
@@ -215,6 +224,59 @@ export default function AdminPage() {
     } catch (err) {
       console.error(err);
       setMessage("Failed to delete event.");
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const handleAddAttendee = async () => {
+    if (!attendeeEventId || !attendeeInput.trim()) return;
+    setSaving(true);
+    setMessage(null);
+    try {
+      await addAttendee(attendeeEventId, attendeeInput.trim());
+      setEvents((prev) =>
+        prev.map((evt) =>
+          evt.id === attendeeEventId
+            ? {
+                ...evt,
+                attendeesCount: evt.attendeesCount + 1,
+                attendees: [...evt.attendees, { id: attendeeInput.trim(), name: attendeeInput.trim(), email: "" }],
+              }
+            : evt
+        )
+      );
+      setAttendeeInput("");
+      setAttendeeEventId(null);
+      setMessage("Attendee added.");
+    } catch (err) {
+      console.error(err);
+      setMessage("Failed to add attendee.");
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const handleRemoveAttendee = async (eventId: string, userId: string) => {
+    setSaving(true);
+    setMessage(null);
+    try {
+      await removeAttendee(eventId, userId);
+      setEvents((prev) =>
+        prev.map((evt) =>
+          evt.id === eventId
+            ? {
+                ...evt,
+                attendeesCount: Math.max(0, evt.attendeesCount - 1),
+                attendees: evt.attendees.filter((a) => a.id !== userId),
+              }
+            : evt
+        )
+      );
+      setMessage("Attendee removed.");
+    } catch (err) {
+      console.error(err);
+      setMessage("Failed to remove attendee.");
     } finally {
       setSaving(false);
     }
@@ -432,6 +494,16 @@ export default function AdminPage() {
                                 Edit
                               </Button>
                               <Button
+                                variant="outline"
+                                size="sm"
+                                onClick={() => {
+                                  setAttendeeEventId(evt.id);
+                                  setAttendeeInput("");
+                                }}
+                              >
+                                Manage attendees
+                              </Button>
+                              <Button
                                 variant="destructive"
                                 size="sm"
                                 onClick={() => deleteEvent(evt)}
@@ -518,6 +590,82 @@ export default function AdminPage() {
                         <TableRow>
                           <TableCell colSpan={6} className="py-6 text-center text-muted-foreground">
                             No excused absence requests yet.
+                          </TableCell>
+                        </TableRow>
+                      )}
+                    </TableBody>
+                  </Table>
+                </div>
+              )}
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardHeader>
+              <CardTitle>Manage Attendees</CardTitle>
+              <CardDescription>Add or remove attendees by user ID.</CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <div className="flex flex-col gap-2 md:flex-row md:items-end md:gap-3">
+                <div className="flex flex-col gap-2 md:w-1/2">
+                  <label className="text-sm text-muted-foreground">User ID</label>
+                  <Input
+                    value={attendeeInput}
+                    onChange={(e) => setAttendeeInput(e.target.value)}
+                    placeholder="Enter user ID"
+                  />
+                </div>
+                <div className="flex flex-col gap-2 md:w-1/2">
+                  <label className="text-sm text-muted-foreground">Event</label>
+                  <Select onValueChange={(v) => setAttendeeEventId(v)} value={attendeeEventId || ""}>
+                    <SelectTrigger>
+                      <SelectValue placeholder="Select event" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {sortedEvents.map((evt) => (
+                        <SelectItem key={evt.id} value={evt.id}>
+                          {evt.name}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+                <Button onClick={handleAddAttendee} disabled={saving || !attendeeInput || !attendeeEventId}>
+                  Add attendee
+                </Button>
+              </div>
+              {attendeeEventId && (
+                <div className="overflow-x-auto">
+                  <Table>
+                    <TableHeader>
+                      <TableRow>
+                        <TableHead>User</TableHead>
+                        <TableHead>Email</TableHead>
+                        <TableHead className="text-right">Actions</TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {events
+                        .find((e) => e.id === attendeeEventId)
+                        ?.attendees.map((att) => (
+                          <TableRow key={att.id}>
+                            <TableCell className="text-foreground">{att.name || att.id}</TableCell>
+                            <TableCell className="text-muted-foreground">{att.email}</TableCell>
+                            <TableCell className="text-right">
+                              <Button
+                                variant="outline"
+                                size="sm"
+                                onClick={() => handleRemoveAttendee(attendeeEventId, att.id)}
+                                disabled={saving}
+                              >
+                                Remove
+                              </Button>
+                            </TableCell>
+                          </TableRow>
+                        )) ?? (
+                        <TableRow>
+                          <TableCell colSpan={3} className="py-4 text-center text-muted-foreground">
+                            No attendees yet.
                           </TableCell>
                         </TableRow>
                       )}

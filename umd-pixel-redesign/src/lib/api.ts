@@ -1,6 +1,8 @@
 import {
   Timestamp,
   addDoc,
+  arrayRemove,
+  arrayUnion,
   collection,
   collectionGroup,
   deleteDoc,
@@ -21,6 +23,7 @@ export type EventRecord = {
   type: string;
   pixels: number;
   attendeesCount: number;
+  attendees: Attendee[];
 };
 
 export type ExcusedRequest = {
@@ -47,6 +50,12 @@ export type EventInput = {
   pixels: number;
 };
 
+export type Attendee = {
+  id: string;
+  name: string;
+  email: string;
+};
+
 export async function fetchAdminData(): Promise<AdminData> {
   const settingsSnap = await getDoc(doc(db, "settings", "global"));
   const currentSemesterId = settingsSnap.data()?.currentSemesterId || null;
@@ -63,17 +72,22 @@ export async function fetchAdminData(): Promise<AdminData> {
   const events: EventRecord[] = [];
   const eventNameMap = new Map<string, string>();
 
+  const attendeeIds = new Set<string>();
+
   eventsSnap.forEach((d) => {
     const data = d.data() as any;
     const dateVal = data.date?.toDate ? data.date.toDate() : new Date(data.date || Date.now());
     const name = data.name || data.eventName || "Event";
+    const attendees: string[] = data.attendees || [];
+    attendees.forEach((id) => attendeeIds.add(id));
     events.push({
       id: d.id,
       name,
       date: dateVal.toISOString(),
       type: data.type || "GBM",
       pixels: data.pixels || 0,
-      attendeesCount: Array.isArray(data.attendees) ? data.attendees.length : 0,
+      attendeesCount: attendees.length,
+      attendees: [],
     });
     eventNameMap.set(d.id, name);
   });
@@ -83,7 +97,7 @@ export async function fetchAdminData(): Promise<AdminData> {
   );
 
   const excused: ExcusedRequest[] = [];
-  const userIds = new Set<string>();
+  const userIds = new Set<string>(attendeeIds);
   excusedSnap.forEach((d) => {
     const data = d.data() as any;
     const eventId = d.ref.parent.parent?.id || "";
@@ -97,27 +111,43 @@ export async function fetchAdminData(): Promise<AdminData> {
       reason: data.reason || "",
       status: data.status || "pending",
     });
-    if (data.userId) userIds.add(data.userId);
+    if (data.userId) userIds.add(data.userId as string);
   });
 
-  if (userIds.size > 0) {
-    await Promise.all(
-      Array.from(userIds).map(async (uid) => {
-        const userSnap = await getDoc(doc(db, "users", uid));
-        if (userSnap.exists()) {
-          const data = userSnap.data() as any;
-          const name = `${data.firstName || ""} ${data.lastName || ""}`.trim() || "Member";
-          const email = data.email || data.slackEmail || "";
-          excused.forEach((row) => {
-            if (row.userId === uid) {
-              row.userName = name;
-              row.userEmail = email;
-            }
-          });
-        }
-      })
-    );
-  }
+  const userDetails = new Map<string, { name: string; email: string }>();
+  await Promise.all(
+    Array.from(userIds).map(async (uid) => {
+      const userSnap = await getDoc(doc(db, "users", uid));
+      if (userSnap.exists()) {
+        const data = userSnap.data() as any;
+        const name = `${data.firstName || ""} ${data.lastName || ""}`.trim() || "Member";
+        const email = data.email || data.slackEmail || "";
+        userDetails.set(uid, { name, email });
+      }
+    })
+  );
+
+  excused.forEach((row) => {
+    const details = userDetails.get(row.userId);
+    if (details) {
+      row.userName = details.name;
+      row.userEmail = details.email;
+    }
+  });
+
+  events.forEach((evt) => {
+    const snap = eventsSnap.docs.find((d) => d.id === evt.id);
+    const data = snap?.data() as any;
+    const attendees: string[] = data?.attendees || [];
+    evt.attendees = attendees.map((id) => {
+      const details = userDetails.get(id);
+      return {
+        id,
+        name: details?.name || id,
+        email: details?.email || "",
+      };
+    });
+  });
 
   return { events, excused, currentSemesterId };
 }
@@ -166,4 +196,16 @@ export async function deleteEventById(eventId: string) {
 
 export async function updateExcusedStatus(eventId: string, requestId: string, status: string) {
   await updateDoc(doc(db, "events", eventId, "excused_absences", requestId), { status });
+}
+
+export async function addAttendee(eventId: string, userId: string) {
+  await updateDoc(doc(db, "events", eventId), {
+    attendees: arrayUnion(userId),
+  } as any);
+}
+
+export async function removeAttendee(eventId: string, userId: string) {
+  await updateDoc(doc(db, "events", eventId), {
+    attendees: arrayRemove(userId),
+  } as any);
 }
