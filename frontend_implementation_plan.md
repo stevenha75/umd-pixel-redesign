@@ -83,6 +83,7 @@ Replicates `umd-pixel-old/pages/homePage.tsx` with modern UI.
     - [x] Display excused absence requests with event/user context and approve/reject actions.
     - [x] Basic form validation/errors on create/edit event.
     - [x] Edit existing events inline (name/type/date/pixels).
+    - [x] Delete events; sortable event table.
     - [x] Display excused absence requests with event/user context and approve/reject actions.
 
 ### 4b. Member/Attendance Data Handling

@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { ProtectedRoute } from "@/components/ProtectedRoute";
 import Navbar from "@/components/Navbar";
 import {
@@ -8,6 +8,7 @@ import {
   addDoc,
   collection,
   collectionGroup,
+  deleteDoc,
   doc,
   getDoc,
   getDocs,
@@ -53,6 +54,8 @@ export default function AdminPage() {
   const [saving, setSaving] = useState(false);
   const [message, setMessage] = useState<string | null>(null);
   const [errors, setErrors] = useState<Record<string, string>>({});
+  const [sortKey, setSortKey] = useState<"date" | "name" | "pixels">("date");
+  const [sortDir, setSortDir] = useState<"asc" | "desc">("desc");
 
   useEffect(() => {
     const load = async () => {
@@ -232,6 +235,46 @@ export default function AdminPage() {
     setErrors({});
   };
 
+  const deleteEvent = async (evt: EventRow) => {
+    const confirmed = window.confirm(`Delete event "${evt.name}"?`);
+    if (!confirmed) return;
+    setSaving(true);
+    setMessage(null);
+    try {
+      await deleteDoc(doc(db, "events", evt.id));
+      setEvents((prev) => prev.filter((e) => e.id !== evt.id));
+      setMessage("Event deleted.");
+      if (editingId === evt.id) {
+        resetForm();
+      }
+    } catch (err) {
+      console.error(err);
+      setMessage("Failed to delete event.");
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const sortedEvents = useMemo(() => {
+    const copy = [...events];
+    copy.sort((a, b) => {
+      const dir = sortDir === "asc" ? 1 : -1;
+      if (sortKey === "pixels") return dir * ((a.pixels || 0) - (b.pixels || 0));
+      if (sortKey === "name") return dir * a.name.localeCompare(b.name);
+      return dir * new Date(a.date).getTime() - dir * new Date(b.date).getTime();
+    });
+    return copy;
+  }, [events, sortDir, sortKey]);
+
+  const toggleSort = (key: "date" | "name" | "pixels") => {
+    if (sortKey === key) {
+      setSortDir((d) => (d === "asc" ? "desc" : "asc"));
+    } else {
+      setSortKey(key);
+      setSortDir("desc");
+    }
+  };
+
   const saveEdit = async () => {
     if (!editingId) return;
     if (!validateForm()) return;
@@ -372,16 +415,40 @@ export default function AdminPage() {
                 <table className="min-w-full text-sm">
                   <thead className="bg-zinc-50 text-left text-zinc-600">
                     <tr>
-                      <th className="px-3 py-2 font-medium">Name</th>
-                      <th className="px-3 py-2 font-medium">Date</th>
+                      <th className="px-3 py-2 font-medium">
+                        <button
+                          onClick={() => toggleSort("name")}
+                          className="flex items-center gap-1"
+                          title="Sort by name"
+                        >
+                          Name {sortKey === "name" ? (sortDir === "asc" ? "▲" : "▼") : ""}
+                        </button>
+                      </th>
+                      <th className="px-3 py-2 font-medium">
+                        <button
+                          onClick={() => toggleSort("date")}
+                          className="flex items-center gap-1"
+                          title="Sort by date"
+                        >
+                          Date {sortKey === "date" ? (sortDir === "asc" ? "▲" : "▼") : ""}
+                        </button>
+                      </th>
                       <th className="px-3 py-2 font-medium">Type</th>
-                      <th className="px-3 py-2 font-medium text-right">Pixels</th>
+                      <th className="px-3 py-2 font-medium text-right">
+                        <button
+                          onClick={() => toggleSort("pixels")}
+                          className="flex w-full items-center justify-end gap-1"
+                          title="Sort by pixels"
+                        >
+                          Pixels {sortKey === "pixels" ? (sortDir === "asc" ? "▲" : "▼") : ""}
+                        </button>
+                      </th>
                       <th className="px-3 py-2 font-medium text-right">Attendees</th>
                       <th className="px-3 py-2 font-medium text-right">Actions</th>
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-zinc-100">
-                    {events.map((evt) => (
+                    {sortedEvents.map((evt) => (
                       <tr key={evt.id} className="hover:bg-zinc-50">
                         <td className="px-3 py-2 text-zinc-900">{evt.name}</td>
                         <td className="px-3 py-2 text-zinc-700">{evt.date}</td>
@@ -394,6 +461,13 @@ export default function AdminPage() {
                             className="rounded-full border border-zinc-200 px-3 py-1 text-xs font-medium text-zinc-700 hover:bg-zinc-50"
                           >
                             Edit
+                          </button>
+                          <button
+                            onClick={() => deleteEvent(evt)}
+                            className="ml-2 rounded-full border border-rose-200 px-3 py-1 text-xs font-medium text-rose-700 hover:bg-rose-50"
+                            disabled={saving}
+                          >
+                            Delete
                           </button>
                         </td>
                       </tr>
