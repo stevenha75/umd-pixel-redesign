@@ -56,6 +56,25 @@ export type Attendee = {
   email: string;
 };
 
+export type MemberRecord = {
+  id: string;
+  firstName: string;
+  lastName: string;
+  email: string;
+  pixels: number;
+  pixelDelta: number;
+  rank?: number;
+};
+
+export type ActivityRecord = {
+  id: string;
+  name: string;
+  type: string;
+  pixels: number;
+  semesterId?: string;
+  multipliers: { userId: string; multiplier: number }[];
+};
+
 export async function fetchAdminData(): Promise<AdminData> {
   const settingsSnap = await getDoc(doc(db, "settings", "global"));
   const currentSemesterId = settingsSnap.data()?.currentSemesterId || null;
@@ -207,5 +226,117 @@ export async function addAttendee(eventId: string, userId: string) {
 export async function removeAttendee(eventId: string, userId: string) {
   await updateDoc(doc(db, "events", eventId), {
     attendees: arrayRemove(userId),
+  } as any);
+}
+
+export async function fetchMembers(): Promise<MemberRecord[]> {
+  const snap = await getDocs(query(collection(db, "users"), orderBy("pixelCached", "desc")));
+  return snap.docs.map((d, idx) => {
+    const data = d.data() as any;
+    return {
+      id: d.id,
+      firstName: data.firstName || "",
+      lastName: data.lastName || "",
+      email: data.email || data.slackEmail || "",
+      pixels: data.pixelCached ?? data.pixels ?? 0,
+      pixelDelta: data.pixelDelta ?? data.pixeldelta ?? 0,
+      rank: idx + 1,
+    };
+  });
+}
+
+export async function addMember(data: { firstName: string; lastName: string; email: string }) {
+  const docRef = await addDoc(collection(db, "users"), {
+    ...data,
+    isAdmin: false,
+    pixelDelta: 0,
+    pixelCached: 0,
+    createdAt: Timestamp.now(),
+  });
+  return { id: docRef.id, ...data, pixels: 0, pixelDelta: 0 };
+}
+
+export async function updateMember(userId: string, data: Partial<MemberRecord>) {
+  await updateDoc(doc(db, "users", userId), {
+    firstName: data.firstName,
+    lastName: data.lastName,
+    email: data.email,
+  });
+}
+
+export async function deleteMember(userId: string) {
+  await deleteDoc(doc(db, "users", userId));
+}
+
+export async function addAttendeesByEmail(eventId: string, emails: string[]) {
+  const unique = Array.from(new Set(emails.map((e) => e.trim()).filter(Boolean)));
+  const foundIds: string[] = [];
+  for (const email of unique) {
+    const snap = await getDocs(
+      query(collection(db, "users"), where("email", "==", email.toLowerCase()))
+    );
+    snap.forEach((d) => foundIds.push(d.id));
+  }
+  if (foundIds.length) {
+    await updateDoc(doc(db, "events", eventId), {
+      attendees: arrayUnion(...foundIds),
+    } as any);
+  }
+  return foundIds;
+}
+
+export async function fetchActivities(semesterId?: string): Promise<ActivityRecord[]> {
+  const base = collection(db, "activities");
+  const q = semesterId
+    ? query(base, where("semesterId", "==", semesterId), orderBy("name", "asc"))
+    : query(base, orderBy("name", "asc"));
+  const snap = await getDocs(q);
+  return snap.docs.map((d) => {
+    const data = d.data() as any;
+    const multipliers = Object.entries(data.multipliers || {}).map(([userId, multiplier]) => ({
+      userId,
+      multiplier: Number(multiplier),
+    }));
+    return {
+      id: d.id,
+      name: data.name || "Activity",
+      type: data.type || "other",
+      pixels: data.pixels || 0,
+      semesterId: data.semesterId,
+      multipliers,
+    };
+  });
+}
+
+export async function createActivity(input: {
+  name: string;
+  type: string;
+  pixels: number;
+  semesterId?: string;
+}) {
+  const docRef = await addDoc(collection(db, "activities"), {
+    ...input,
+    multipliers: {},
+    createdAt: Timestamp.now(),
+  });
+  return { id: docRef.id, ...input, multipliers: [] } as ActivityRecord;
+}
+
+export async function updateActivity(activityId: string, data: Partial<ActivityRecord>) {
+  await updateDoc(doc(db, "activities", activityId), {
+    name: data.name,
+    type: data.type,
+    pixels: data.pixels,
+    semesterId: data.semesterId,
+  });
+}
+
+export async function deleteActivity(activityId: string) {
+  await deleteDoc(doc(db, "activities", activityId));
+}
+
+export async function setActivityMultiplier(activityId: string, userId: string, multiplier: number) {
+  await updateDoc(doc(db, "activities", activityId), {
+    [`multipliers.${userId}`]: multiplier,
   } as any);
 }

@@ -36,6 +36,16 @@ export type DashboardData = {
   pixelLog: PixelLogRow[];
   leaderboard: LeaderboardRow[];
   leaderboardEnabled: boolean;
+  activities: ActivityRow[];
+};
+
+export type ActivityRow = {
+  id: string;
+  name: string;
+  type: string;
+  pixelsPer: number;
+  multiplier: number;
+  total: number;
 };
 
 const requiredTypes = ["GBM", "other_mandatory"];
@@ -110,6 +120,28 @@ export async function fetchDashboardData(userId: string): Promise<DashboardData>
     });
   });
 
+  const activities: ActivityRow[] = [];
+  const activitiesSnap = await getDocs(
+    query(collection(db, "activities"), where("semesterId", "==", currentSemesterId))
+  );
+  activitiesSnap.forEach((docSnap) => {
+    const data = docSnap.data() as any;
+    const multipliers = data.multipliers || {};
+    const multiplier = multipliers[userId] || 0;
+    if (multiplier) {
+      const total = (data.pixels || 0) * multiplier;
+      activities.push({
+        id: docSnap.id,
+        name: data.name || "Activity",
+        type: data.type || "activity",
+        pixelsPer: data.pixels || 0,
+        multiplier,
+        total,
+      });
+      earnedPixels += total;
+    }
+  });
+
   const pixelTotal = userData.pixelCached ?? userData.pixels ?? earnedPixels + pixelDelta;
 
   let leaderboard: LeaderboardRow[] = [];
@@ -138,5 +170,6 @@ export async function fetchDashboardData(userId: string): Promise<DashboardData>
     pixelLog,
     leaderboard,
     leaderboardEnabled,
+    activities,
   };
 }

@@ -7,9 +7,11 @@ import { Leaderboard } from "@/components/dashboard/Leaderboard";
 import { PixelLogTable } from "@/components/dashboard/PixelLogTable";
 import { PixelSummary } from "@/components/dashboard/PixelSummary";
 import { AdjustmentNotice } from "@/components/dashboard/AdjustmentNotice";
+import { ActivitiesTable } from "@/components/dashboard/ActivitiesTable";
 import { useAuth } from "@/context/AuthContext";
 import { DashboardData, fetchDashboardData } from "@/lib/dashboard";
 import { useQuery } from "@tanstack/react-query";
+import { Button } from "@/components/ui/button";
 
 export default function Home() {
   const { user } = useAuth();
@@ -45,15 +47,12 @@ export default function Home() {
               />
               <AdjustmentNotice pixelDelta={data.pixelDelta} />
               <PixelLogTable rows={data.pixelLog} />
+              <ActivitiesTable rows={data.activities} />
               <Leaderboard rows={data.leaderboard} enabled={data.leaderboardEnabled} />
               <div className="flex justify-end">
-                <button
-                  onClick={() => refetch()}
-                  disabled={isFetching}
-                  className="rounded-full border border-zinc-300 px-4 py-2 text-sm font-medium text-zinc-800 hover:bg-zinc-50 disabled:opacity-60"
-                >
+                <Button variant="outline" onClick={() => refetch()} disabled={isFetching}>
                   {isFetching ? "Refreshing…" : "Refresh"}
-                </button>
+                </Button>
               </div>
             </>
           )}

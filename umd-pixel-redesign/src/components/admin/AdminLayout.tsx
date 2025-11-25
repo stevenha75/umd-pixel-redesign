@@ -10,6 +10,8 @@ type Props = {
 
 const links = [
   { href: "/admin", label: "Events" },
+  { href: "/admin/members", label: "Members" },
+  { href: "/admin/activities", label: "Activities" },
   { href: "/admin/settings", label: "Settings" },
 ];
 
