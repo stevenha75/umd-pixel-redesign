@@ -4,47 +4,65 @@ import Link from "next/link";
 import Image from "next/image";
 import { useState } from "react";
 import { useAuth } from "@/context/AuthContext";
+import { Button } from "@/components/ui/button";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { cn } from "@/lib/utils";
 
 export default function Navbar() {
   const { user, isAdmin, signOut } = useAuth();
   const [open, setOpen] = useState(false);
+  const initials =
+    user?.displayName
+      ?.split(" ")
+      .map((p) => p[0])
+      .join("") || "U";
 
   return (
-    <nav className="sticky top-0 z-20 border-b border-zinc-200 bg-white/80 backdrop-blur">
-      <div className="mx-auto flex max-w-5xl items-center justify-between px-4 py-3">
+    <nav className="sticky top-0 z-20 border-b border-border bg-background/80 backdrop-blur">
+      <div className="mx-auto flex max-w-6xl items-center justify-between px-4 py-3">
         <div className="flex items-center gap-3">
           <Image src="/images/h4i.png" alt="Hack4Impact" width={32} height={32} />
-          <div className="text-sm font-semibold leading-tight text-zinc-900">
-            UMD Pixels
-          </div>
+          <div className="text-sm font-semibold leading-tight text-foreground">UMD Pixels</div>
         </div>
         <div className="hidden items-center gap-3 text-sm sm:flex">
           {isAdmin && (
-            <Link
-              href="/admin"
-              className="rounded-full border border-zinc-200 px-4 py-2 font-medium text-zinc-800 hover:bg-zinc-50"
-            >
-              Admin
-            </Link>
+            <Button asChild variant="outline">
+              <Link href="/admin">Admin</Link>
+            </Button>
           )}
           {user ? (
-            <button
-              onClick={signOut}
-              className="rounded-full bg-black px-4 py-2 font-medium text-white hover:bg-zinc-800"
-            >
-              Sign out
-            </button>
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button variant="ghost" className="flex items-center gap-2 px-2">
+                  <Avatar className="h-8 w-8">
+                    <AvatarImage src={user.photoURL || ""} alt={user.displayName || ""} />
+                    <AvatarFallback>{initials}</AvatarFallback>
+                  </Avatar>
+                  <span className="text-sm">{user.displayName || "User"}</span>
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end">
+                <DropdownMenuLabel>Account</DropdownMenuLabel>
+                <DropdownMenuSeparator />
+                <DropdownMenuItem onClick={signOut}>Sign out</DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
           ) : (
-            <Link
-              href="/login"
-              className="rounded-full bg-black px-4 py-2 font-medium text-white hover:bg-zinc-800"
-            >
-              Sign in
-            </Link>
+            <Button asChild>
+              <Link href="/login">Sign in</Link>
+            </Button>
           )}
         </div>
         <button
-          className="inline-flex items-center justify-center rounded-md border border-zinc-200 px-3 py-2 text-sm font-medium text-zinc-800 hover:bg-zinc-50 sm:hidden"
+          className="inline-flex items-center justify-center rounded-md border border-border px-3 py-2 text-sm font-medium text-foreground hover:bg-muted sm:hidden"
           onClick={() => setOpen((v) => !v)}
           aria-label="Toggle menu"
         >
@@ -52,35 +70,32 @@ export default function Navbar() {
         </button>
       </div>
       {open && (
-        <div className="border-t border-zinc-200 bg-white px-4 py-3 text-sm sm:hidden">
+        <div className="border-t border-border bg-background px-4 py-3 text-sm sm:hidden">
           <div className="flex flex-col gap-2">
             {isAdmin && (
-              <Link
-                href="/admin"
-                className="rounded-lg border border-zinc-200 px-4 py-2 font-medium text-zinc-800 hover:bg-zinc-50"
+              <Button
+                asChild
+                variant="outline"
+                className="justify-start"
                 onClick={() => setOpen(false)}
               >
-                Admin
-              </Link>
+                <Link href="/admin">Admin</Link>
+              </Button>
             )}
             {user ? (
-              <button
+              <Button
                 onClick={() => {
                   signOut();
                   setOpen(false);
                 }}
-                className="rounded-lg bg-black px-4 py-2 font-medium text-white hover:bg-zinc-800"
+                className="justify-start"
               >
                 Sign out
-              </button>
+              </Button>
             ) : (
-              <Link
-                href="/login"
-                className="rounded-lg bg-black px-4 py-2 font-medium text-white hover:bg-zinc-800"
-                onClick={() => setOpen(false)}
-              >
-                Sign in
-              </Link>
+              <Button asChild className="justify-start" onClick={() => setOpen(false)}>
+                <Link href="/login">Sign in</Link>
+              </Button>
             )}
           </div>
         </div>

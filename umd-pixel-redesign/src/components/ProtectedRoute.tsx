@@ -3,6 +3,8 @@
 import { useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { useAuth } from "@/context/AuthContext";
+import { Card, CardContent } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
 
 type Props = {
   children: React.ReactNode;
@@ -26,20 +28,26 @@ export function ProtectedRoute({ children, requireAdmin = false }: Props) {
 
   if (loading || !user) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-zinc-50">
-        <div className="rounded-2xl border border-zinc-200 bg-white px-6 py-4 text-sm text-zinc-700 shadow-sm">
-          Loading…
-        </div>
+      <div className="min-h-screen flex items-center justify-center bg-background">
+        <Card className="w-full max-w-sm">
+          <CardContent className="p-6 text-sm text-muted-foreground">Loading…</CardContent>
+        </Card>
       </div>
     );
   }
 
   if (requireAdmin && !isAdmin) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-zinc-50">
-        <div className="rounded-2xl border border-amber-200 bg-amber-50 px-6 py-4 text-sm text-amber-900 shadow-sm">
-          Admins only. You do not have access to this page.
-        </div>
+      <div className="min-h-screen flex items-center justify-center bg-background">
+        <Card className="w-full max-w-sm border-amber-200 bg-amber-50 text-amber-900 shadow-sm">
+          <CardContent className="p-6 space-y-3 text-sm">
+            <div className="font-semibold">Admins only</div>
+            <div>You do not have access to this page.</div>
+            <Button variant="outline" onClick={() => router.replace("/")}>
+              Go home
+            </Button>
+          </CardContent>
+        </Card>
       </div>
     );
   }
