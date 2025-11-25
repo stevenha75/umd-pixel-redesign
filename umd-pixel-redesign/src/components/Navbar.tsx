@@ -1,7 +1,6 @@
 "use client";
 
 import Link from "next/link";
-import Image from "next/image";
 import { useState } from "react";
 import { useAuth } from "@/context/AuthContext";
 import { Button } from "@/components/ui/button";
@@ -28,7 +27,7 @@ export default function Navbar() {
     <nav className="sticky top-0 z-20 border-b border-border bg-background/80 backdrop-blur">
       <div className="mx-auto flex max-w-6xl items-center justify-between px-4 py-3">
         <div className="flex items-center gap-3">
-          <Image src="/images/h4i.png" alt="Hack4Impact" width={32} height={32} />
+          <img src="/images/h4i.png" alt="Hack4Impact" width={32} height={32} className="h-8 w-8" />
           <div className="text-sm font-semibold leading-tight text-foreground">UMD Pixels</div>
         </div>
         <div className="hidden items-center gap-3 text-sm sm:flex">

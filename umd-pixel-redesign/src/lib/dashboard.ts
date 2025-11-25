@@ -130,9 +130,10 @@ export async function fetchDashboardData(userId: string): Promise<DashboardData>
   });
 
   const activities: ActivityRow[] = [];
-  const activitiesSnap = await getDocs(
-    query(collection(db, "activities"), where("semesterId", "==", currentSemesterId))
-  );
+  const activitiesQuery = currentSemesterId
+    ? query(collection(db, "activities"), where("semesterId", "==", currentSemesterId))
+    : collection(db, "activities");
+  const activitiesSnap = await getDocs(activitiesQuery);
   activitiesSnap.forEach((docSnap) => {
     const data = docSnap.data() as ActivityDocument;
     const multipliers = data.multipliers || {};

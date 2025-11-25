@@ -60,9 +60,21 @@ function SlackCallback() {
 
         await signInWithCustomToken(auth, token);
         router.replace("/");
-      } catch (err) {
+      } catch (err: any) {
         console.error("Slack auth callback failed", err);
-        setStatus("Authentication failed. Please try again.");
+
+        let errorMessage = "Authentication failed. Please try again.";
+        if (err?.message) {
+          if (err.message.includes("redirect_uri_mismatch") || err.code === "invalid-argument") {
+            errorMessage = "Redirect URI mismatch. Please contact support.";
+          } else if (err.message.includes("failed-precondition")) {
+            errorMessage = "Server configuration error. Please contact support.";
+          } else if (err.message.includes("permission-denied")) {
+            errorMessage = "You are not authorized to access this application.";
+          }
+        }
+
+        setStatus(errorMessage);
       }
     };
 

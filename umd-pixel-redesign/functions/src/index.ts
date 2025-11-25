@@ -20,7 +20,9 @@ function assertSlackConfig() {
     }
 }
 
-export const authWithSlack = functions.https.onCall(async (data, _context) => {
+export const authWithSlack = functions
+    .region("us-central1")
+    .https.onCall(async (data, _context) => {
     const { code, redirectUri } = data;
 
     assertSlackConfig();
@@ -64,10 +66,7 @@ export const authWithSlack = functions.https.onCall(async (data, _context) => {
         const slackUserId = authed_user.id;
         const accessToken = authed_user.access_token;
 
-        const userResponse = await axios.get("https://slack.com/api/users.info", {
-            params: {
-                user: slackUserId,
-            },
+        const userResponse = await axios.get("https://slack.com/api/users.identity", {
             headers: {
                 Authorization: `Bearer ${accessToken}`,
             },
@@ -81,9 +80,17 @@ export const authWithSlack = functions.https.onCall(async (data, _context) => {
         }
 
         const slackUser = userResponse.data.user;
-        const email = slackUser.profile.email;
-        const firstName = slackUser.profile.first_name || slackUser.real_name.split(" ")[0];
-        const lastName = slackUser.profile.last_name || slackUser.real_name.split(" ").slice(1).join(" ");
+        if (!slackUser) {
+            throw new functions.https.HttpsError(
+                "internal",
+                "No user data returned from Slack"
+            );
+        }
+        
+        const email = slackUser.email;
+        const nameParts = (slackUser.name || "").split(" ");
+        const firstName = nameParts[0] || "";
+        const lastName = nameParts.slice(1).join(" ") || "";
 
         const userRef = admin.firestore().collection("users").doc(slackUserId);
         const userDoc = await userRef.get();
@@ -121,11 +128,23 @@ export const authWithSlack = functions.https.onCall(async (data, _context) => {
         });
 
         return { token: customToken };
-    } catch (error) {
+    } catch (error: any) {
         console.error("Auth Error:", error);
+        
+        if (error instanceof functions.https.HttpsError) {
+            throw error;
+        }
+        
+        if (error?.response?.data) {
+            console.error("Slack API Error Response:", JSON.stringify(error.response.data));
+        }
+        if (error?.message) {
+            console.error("Error Message:", error.message);
+        }
+        
         throw new functions.https.HttpsError(
             "internal",
-            "Authentication failed."
+            error?.message || "Authentication failed."
         );
     }
 });
@@ -135,8 +154,9 @@ export const authWithSlack = functions.https.onCall(async (data, _context) => {
  * Listens for changes in 'events' collection.
  * If 'attendees' or 'pixels' change, recalculates pixels for affected users.
  */
-export const onEventUpdate = functions.firestore
-    .document("events/{eventId}")
+export const onEventUpdate = functions
+    .region("us-central1")
+    .firestore.document("events/{eventId}")
     .onWrite(async (change, _context) => {
         const beforeData = change.before.exists ? change.before.data() : null;
         const afterData = change.after.exists ? change.after.data() : null;
@@ -167,8 +187,9 @@ export const onEventUpdate = functions.firestore
  * Listens for changes in 'events/{eventId}/excused_absences' subcollection.
  * If status changes to 'approved', recalculate pixels.
  */
-export const onExcusedAbsenceUpdate = functions.firestore
-    .document("events/{eventId}/excused_absences/{absenceId}")
+export const onExcusedAbsenceUpdate = functions
+    .region("us-central1")
+    .firestore.document("events/{eventId}/excused_absences/{absenceId}")
     .onWrite(async (change, _context) => {
         const afterData = change.after.exists ? change.after.data() : null;
         const beforeData = change.before.exists ? change.before.data() : null;
@@ -261,8 +282,9 @@ async function recalculateUserPixels(userId: string) {
  * Trigger: onActivityUpdate
  * Recalculate pixels for users affected by multipliers.
  */
-export const onActivityUpdate = functions.firestore
-    .document("activities/{activityId}")
+export const onActivityUpdate = functions
+    .region("us-central1")
+    .firestore.document("activities/{activityId}")
     .onWrite(async (change, _context) => {
         const before = change.before.exists ? change.before.data() : null;
         const after = change.after.exists ? change.after.data() : null;
