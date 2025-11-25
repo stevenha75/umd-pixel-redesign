@@ -18,7 +18,7 @@ export const metadata: Metadata = {
   title: "UMD Pixels",
   description: "Track Hack4Impact UMD attendance and pixel rewards",
   icons: {
-    icon: "/images/h4i.png",
+    icon: "/favicon.ico",
   },
 };
 
