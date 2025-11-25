@@ -10,8 +10,7 @@ type Props = {
 
 const links = [
   { href: "/admin", label: "Events" },
-  // Future: { href: "/admin/attendance", label: "Attendance" },
-  // Future: { href: "/admin/settings", label: "Settings" },
+  { href: "/admin/settings", label: "Settings" },
 ];
 
 export function AdminLayout({ children }: Props) {
