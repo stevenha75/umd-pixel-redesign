@@ -44,7 +44,7 @@ Recreate the user interface for Members and Admins with feature parity to `umd-p
     - [x] **Logo**: Display Hack4Impact Logo.
     - [x] **Admin Button**: `Button` variant="ghost" or "outline". Show ONLY if `user.isAdmin`.
     - [x] **User Menu**: `DropdownMenu` with Avatar and Logout option.
-    - [ ] **Responsive**: Mobile menu for smaller screens.
+    - [x] **Responsive**: Mobile menu for smaller screens.
 
 ### 3. Dashboard Page (`src/app/page.tsx`)
 Replicates `umd-pixel-old/pages/homePage.tsx` with modern UI.
@@ -80,6 +80,7 @@ Replicates `umd-pixel-old/pages/homePage.tsx` with modern UI.
     - [ ] Use `Input`, `Select`, `Button` for creating/editing events.
     - [ ] Validate with Zod; submit via Functions/Firestore.
     - [ ] Excused absence approval flow (status chip + action).
+    - [x] Display excused absence requests with event/user context and approve/reject actions.
 
 ### 4b. Member/Attendance Data Handling
 - [x] Fetch pixel log and leaderboard using Firestore queries equivalent to legacy logic (attended + pixels > 0; respect `pixelDelta/pixelCached`).

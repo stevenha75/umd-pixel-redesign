@@ -7,6 +7,7 @@ import {
   Timestamp,
   addDoc,
   collection,
+  collectionGroup,
   doc,
   getDoc,
   getDocs,
@@ -25,6 +26,17 @@ type EventRow = {
   attendeesCount: number;
 };
 
+type ExcusedRow = {
+  id: string;
+  eventId: string;
+  userId: string;
+  userName: string;
+  userEmail: string;
+  eventName: string;
+  reason: string;
+  status: string;
+};
+
 const defaultEvent = {
   name: "",
   date: "",
@@ -34,6 +46,7 @@ const defaultEvent = {
 
 export default function AdminPage() {
   const [events, setEvents] = useState<EventRow[]>([]);
+  const [excused, setExcused] = useState<ExcusedRow[]>([]);
   const [loading, setLoading] = useState(true);
   const [form, setForm] = useState(defaultEvent);
   const [saving, setSaving] = useState(false);
@@ -63,6 +76,29 @@ export default function AdminPage() {
           });
         });
         setEvents(rows);
+
+        const excusedSnap = await getDocs(
+          query(collectionGroup(db, "excused_absences"), orderBy("createdAt", "desc"))
+        );
+        const excusedRows: ExcusedRow[] = [];
+        const eventNameMap = new Map<string, string>();
+        rows.forEach((evt) => eventNameMap.set(evt.id, evt.name));
+
+        excusedSnap.forEach((d) => {
+          const data = d.data() as any;
+          excusedRows.push({
+            id: d.id,
+            eventId: d.ref.parent.parent?.id || "",
+            eventName: eventNameMap.get(d.ref.parent.parent?.id || "") || "Event",
+            userId: data.userId || "",
+            userName: "",
+            userEmail: "",
+            reason: data.reason || "",
+            status: data.status || "pending",
+          });
+        });
+        await enrichUsers(excusedRows);
+        setExcused(excusedRows);
       } catch (err) {
         console.error(err);
         setMessage("Could not load events.");
@@ -138,6 +174,28 @@ export default function AdminPage() {
         });
       });
       setEvents(rows);
+      const excusedSnap = await getDocs(
+        query(collectionGroup(db, "excused_absences"), orderBy("createdAt", "desc"))
+      );
+      const excusedRows: ExcusedRow[] = [];
+      const eventNameMap = new Map<string, string>();
+      rows.forEach((evt) => eventNameMap.set(evt.id, evt.name));
+
+      excusedSnap.forEach((d) => {
+        const data = d.data() as any;
+        excusedRows.push({
+          id: d.id,
+          eventId: d.ref.parent.parent?.id || "",
+          eventName: eventNameMap.get(d.ref.parent.parent?.id || "") || "Event",
+          userId: data.userId || "",
+          userName: "",
+          userEmail: "",
+          reason: data.reason || "",
+          status: data.status || "pending",
+        });
+      });
+      await enrichUsers(excusedRows);
+      setExcused(excusedRows);
       setMessage("Refreshed events.");
     } catch (err) {
       console.error(err);
@@ -145,6 +203,44 @@ export default function AdminPage() {
     } finally {
       setSaving(false);
     }
+  };
+
+  const updateExcusedStatus = async (row: ExcusedRow, status: "approved" | "rejected") => {
+    setSaving(true);
+    setMessage(null);
+    try {
+      const parentRef = doc(db, "events", row.eventId, "excused_absences", row.id);
+      await updateDoc(parentRef, { status });
+      setExcused((prev) =>
+        prev.map((r) => (r.id === row.id ? { ...r, status } : r))
+      );
+      setMessage(`Marked as ${status}.`);
+    } catch (err) {
+      console.error(err);
+      setMessage("Failed to update status.");
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const enrichUsers = async (rows: ExcusedRow[]) => {
+    const uniqueIds = Array.from(new Set(rows.map((r) => r.userId).filter(Boolean)));
+    await Promise.all(
+      uniqueIds.map(async (uid) => {
+        const snap = await getDoc(doc(db, "users", uid));
+        if (snap.exists()) {
+          const data = snap.data() as any;
+          const name = `${data.firstName || ""} ${data.lastName || ""}`.trim() || "Member";
+          const email = data.email || data.slackEmail || "";
+          rows.forEach((r) => {
+            if (r.userId === uid) {
+              r.userName = name;
+              r.userEmail = email;
+            }
+          });
+        }
+      })
+    );
   };
 
   return (
@@ -260,6 +356,69 @@ export default function AdminPage() {
                       <tr>
                         <td colSpan={5} className="px-3 py-6 text-center text-zinc-500">
                           No events yet.
+                        </td>
+                      </tr>
+                    )}
+                  </tbody>
+                </table>
+              </div>
+            )}
+          </section>
+
+          <section className="mt-6 rounded-2xl border border-zinc-200 bg-white p-6 shadow-sm">
+            <div className="mb-4 flex items-center justify-between">
+              <h2 className="text-lg font-semibold text-zinc-900">Excused Absences</h2>
+              <span className="text-sm text-zinc-500">
+                {excused.filter((r) => r.status === "pending").length} pending
+              </span>
+            </div>
+            {loading ? (
+              <p className="text-sm text-zinc-600">Loading requests…</p>
+            ) : (
+              <div className="overflow-x-auto">
+                <table className="min-w-full text-sm">
+                  <thead className="bg-zinc-50 text-left text-zinc-600">
+                    <tr>
+                      <th className="px-3 py-2 font-medium">Event</th>
+                      <th className="px-3 py-2 font-medium">User</th>
+                      <th className="px-3 py-2 font-medium">Email</th>
+                      <th className="px-3 py-2 font-medium">Reason</th>
+                      <th className="px-3 py-2 font-medium">Status</th>
+                      <th className="px-3 py-2 font-medium text-right">Actions</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-zinc-100">
+                    {excused.map((row) => (
+                      <tr key={row.id} className="hover:bg-zinc-50">
+                        <td className="px-3 py-2 text-zinc-900">{row.eventName || row.eventId}</td>
+                        <td className="px-3 py-2 text-zinc-700">{row.userName || row.userId}</td>
+                        <td className="px-3 py-2 text-zinc-700">{row.userEmail}</td>
+                        <td className="px-3 py-2 text-zinc-700">{row.reason}</td>
+                        <td className="px-3 py-2 text-zinc-700 capitalize">{row.status}</td>
+                        <td className="px-3 py-2 text-right">
+                          <div className="flex items-center justify-end gap-2">
+                            <button
+                              onClick={() => updateExcusedStatus(row, "approved")}
+                              disabled={row.status === "approved" || saving}
+                              className="rounded-full border border-emerald-200 px-3 py-1 text-xs font-medium text-emerald-800 hover:bg-emerald-50 disabled:opacity-50"
+                            >
+                              Approve
+                            </button>
+                            <button
+                              onClick={() => updateExcusedStatus(row, "rejected")}
+                              disabled={row.status === "rejected" || saving}
+                              className="rounded-full border border-rose-200 px-3 py-1 text-xs font-medium text-rose-800 hover:bg-rose-50 disabled:opacity-50"
+                            >
+                              Reject
+                            </button>
+                          </div>
+                        </td>
+                      </tr>
+                    ))}
+                    {excused.length === 0 && (
+                      <tr>
+                        <td colSpan={5} className="px-3 py-6 text-center text-zinc-500">
+                          No excused absence requests yet.
                         </td>
                       </tr>
                     )}
