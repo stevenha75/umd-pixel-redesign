@@ -57,7 +57,7 @@ export default function ActivitiesPage() {
       } else {
         await createActivity({
           ...form,
-          semesterId: adminQuery.data?.currentSemesterId,
+          semesterId: adminQuery.data?.currentSemesterId || undefined,
         });
       }
       setForm({ name: "", type: "coffee_chat", pixels: 0 });

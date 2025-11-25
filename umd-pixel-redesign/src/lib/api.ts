@@ -100,9 +100,11 @@ export async function fetchAdminData(): Promise<AdminData> {
   const attendeeIds = new Set<string>();
 
   eventsSnap.forEach((d) => {
-    const data = d.data() as EventDocument;
-    const dateVal = data.date?.toDate ? data.date.toDate() : new Date(data.date || Date.now());
-    const name = data.name || data.eventName || "Event";
+    const data = d.data() as any;
+    const dateVal =
+      data.date?.toDate?.() ??
+      (data.date instanceof Date ? data.date : new Date(data.date || Date.now()));
+    const name = data.name || "Event";
     const attendees: string[] = data.attendees || [];
     attendees.forEach((id) => attendeeIds.add(id));
     events.push({
@@ -178,7 +180,8 @@ export async function fetchAdminData(): Promise<AdminData> {
 }
 
 export async function createEvent(input: EventInput, semesterId: string | null) {
-  const dateValue = input.date ? Timestamp.fromDate(new Date(input.date)) : Timestamp.now();
+  const dateObj = input.date ? new Date(input.date) : new Date();
+  const dateValue = Timestamp.fromDate(dateObj);
   const newEvent = {
     name: input.name,
     semesterId: semesterId || "",
@@ -191,7 +194,7 @@ export async function createEvent(input: EventInput, semesterId: string | null) 
   return {
     id: created.id,
     name: newEvent.name,
-    date: dateValue.toISOString(),
+    date: dateObj.toISOString(),
     type: newEvent.type,
     pixels: newEvent.pixels,
     attendeesCount: 0,
@@ -199,7 +202,8 @@ export async function createEvent(input: EventInput, semesterId: string | null) 
 }
 
 export async function updateEvent(eventId: string, input: EventInput) {
-  const dateValue = input.date ? Timestamp.fromDate(new Date(input.date)) : Timestamp.now();
+  const dateObj = input.date ? new Date(input.date) : new Date();
+  const dateValue = Timestamp.fromDate(dateObj);
   await updateDoc(doc(db, "events", eventId), {
     name: input.name,
     type: input.type,
@@ -209,7 +213,7 @@ export async function updateEvent(eventId: string, input: EventInput) {
   return {
     id: eventId,
     name: input.name,
-    date: dateValue.toISOString(),
+    date: dateObj.toISOString(),
     type: input.type,
     pixels: Number(input.pixels) || 0,
   };
@@ -286,7 +290,7 @@ export async function fetchMembers(): Promise<MemberRecord[]> {
       lastName: data.lastName || "",
       email: data.email || data.slackEmail || "",
       pixels: data.pixelCached ?? data.pixels ?? 0,
-      pixelDelta: data.pixelDelta ?? data.pixeldelta ?? 0,
+      pixelDelta: data.pixelDelta ?? (data as any).pixeldelta ?? 0,
       rank: idx + 1,
     };
   });

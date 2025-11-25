@@ -52,6 +52,13 @@ export type ActivityRow = {
 
 const requiredTypes = ["GBM", "other_mandatory"];
 
+function toDate(val: any) {
+  if (val?.toDate) return val.toDate();
+  if (val instanceof Date) return val;
+  if (typeof val === "string" || typeof val === "number") return new Date(val);
+  return new Date();
+}
+
 export async function fetchDashboardData(userId: string): Promise<DashboardData> {
   const userSnap = await getDoc(doc(db, "users", userId));
   if (!userSnap.exists()) {
@@ -93,7 +100,7 @@ export async function fetchDashboardData(userId: string): Promise<DashboardData>
     const event = eventDoc.data() as EventDocument;
     const attendees: string[] = event.attendees || [];
     const pixels: number = event.pixels || 0;
-    const eventDate = event.date?.toDate ? event.date.toDate() : new Date(event.date || Date.now());
+    const eventDate = toDate(event.date);
 
     let attendance: PixelLogRow["attendance"] = "No Show";
 
@@ -114,7 +121,7 @@ export async function fetchDashboardData(userId: string): Promise<DashboardData>
       id: `${eventDoc.id}-${userId}`,
       eventId: eventDoc.id,
       date: eventDate.toLocaleDateString(),
-      name: event.name || event.eventName || "Event",
+      name: event.name || "Event",
       type: event.type || "event",
       attendance,
       pixelsAllocated: pixels,

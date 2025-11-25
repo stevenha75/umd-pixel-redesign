@@ -111,6 +111,7 @@ export default function AdminPage() {
     reset,
     formState: { errors },
     control,
+    setValue,
   } = useForm<EventForm>({
     resolver: zodResolver(eventSchema),
     defaultValues: defaultEvent,
