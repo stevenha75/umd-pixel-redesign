@@ -229,6 +229,43 @@ export async function removeAttendee(eventId: string, userId: string) {
   } as any);
 }
 
+export async function setAttendanceStatus(
+  eventId: string,
+  userId: string,
+  status: "present" | "excused" | "absent"
+) {
+  const eventRef = doc(db, "events", eventId);
+  if (status === "present") {
+    await updateDoc(eventRef, { attendees: arrayUnion(userId) } as any);
+    // remove excused if exists
+    const excused = await getDocs(
+      query(collection(eventRef, "excused_absences"), where("userId", "==", userId))
+    );
+    await Promise.all(excused.docs.map((d) => deleteDoc(d.ref)));
+  } else if (status === "excused") {
+    await updateDoc(eventRef, { attendees: arrayRemove(userId) } as any);
+    const existing = await getDocs(
+      query(collection(eventRef, "excused_absences"), where("userId", "==", userId))
+    );
+    if (existing.empty) {
+      await addDoc(collection(eventRef, "excused_absences"), {
+        userId,
+        status: "approved",
+        reason: "Marked excused by admin",
+        createdAt: Timestamp.now(),
+      });
+    } else {
+      await Promise.all(existing.docs.map((d) => updateDoc(d.ref, { status: "approved" })));
+    }
+  } else {
+    await updateDoc(eventRef, { attendees: arrayRemove(userId) } as any);
+    const existing = await getDocs(
+      query(collection(eventRef, "excused_absences"), where("userId", "==", userId))
+    );
+    await Promise.all(existing.docs.map((d) => deleteDoc(d.ref)));
+  }
+}
+
 export async function fetchMembers(): Promise<MemberRecord[]> {
   const snap = await getDocs(query(collection(db, "users"), orderBy("pixelCached", "desc")));
   return snap.docs.map((d, idx) => {

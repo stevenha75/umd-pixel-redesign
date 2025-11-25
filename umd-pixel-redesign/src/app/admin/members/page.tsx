@@ -18,6 +18,7 @@ import {
   deleteMember,
   fetchAdminData,
   addAttendee,
+  setAttendanceStatus,
 } from "@/lib/api";
 
 export default function MembersPage() {
@@ -125,6 +126,44 @@ export default function MembersPage() {
   }, [message]);
 
   const selectedMember = members.find((m) => m.id === editing?.id);
+  const memberEvents = useMemo(() => {
+    if (!selectedMember || !adminQuery.data) return [];
+    return adminQuery.data.events.map((evt) => {
+      const excused = adminQuery.data?.excused.find(
+        (ex) => ex.eventId === evt.id && ex.userId === selectedMember.id && ex.status === "approved"
+      );
+      const present = evt.attendees.some((a) => a.id === selectedMember.id);
+      let status: "Present" | "Excused" | "Unexcused" | "Not Present" = "Not Present";
+      if (present) status = "Present";
+      else if (excused) status = "Excused";
+      else if (["GBM", "other_mandatory"].includes(evt.type)) status = "Unexcused";
+      return {
+        id: evt.id,
+        name: evt.name,
+        date: evt.date,
+        type: evt.type,
+        status,
+        pixels: evt.pixels,
+      };
+    });
+  }, [selectedMember, adminQuery.data]);
+
+  const cycleStatus = async (evtId: string, current: string, type: string) => {
+    if (!selectedMember) return;
+    const mandatory = ["GBM", "other_mandatory"].includes(type);
+    let next: "present" | "excused" | "absent" = "present";
+    if (current === "Present") next = mandatory ? "excused" : "absent";
+    else if (current === "Excused") next = "absent";
+    else next = "present";
+    setSaving(true);
+    setMessage(null);
+    try {
+      await setAttendanceStatus(evtId, selectedMember.id, next);
+      await adminQuery.refetch();
+    } finally {
+      setSaving(false);
+    }
+  };
 
   return (
     <ProtectedRoute requireAdmin>
@@ -305,6 +344,53 @@ export default function MembersPage() {
                     <Button onClick={handleUpdateMember} disabled={saving}>
                       {saving ? "Saving…" : "Save changes"}
                     </Button>
+                    <div className="pt-4">
+                      <div className="text-sm font-semibold text-foreground">Events</div>
+                      <div className="overflow-x-auto">
+                        <Table>
+                          <TableHeader>
+                            <TableRow>
+                              <TableHead>Name</TableHead>
+                              <TableHead>Date</TableHead>
+                              <TableHead>Type</TableHead>
+                              <TableHead>Status</TableHead>
+                              <TableHead className="text-right">Pixels</TableHead>
+                              <TableHead className="text-right">Action</TableHead>
+                            </TableRow>
+                          </TableHeader>
+                          <TableBody>
+                            {memberEvents.map((evt) => (
+                              <TableRow key={evt.id}>
+                                <TableCell>{evt.name}</TableCell>
+                                <TableCell className="text-muted-foreground">{evt.date}</TableCell>
+                                <TableCell className="text-muted-foreground">{evt.type}</TableCell>
+                                <TableCell className="text-muted-foreground">{evt.status}</TableCell>
+                                <TableCell className="text-right text-muted-foreground">
+                                  {evt.pixels}
+                                </TableCell>
+                                <TableCell className="text-right">
+                                  <Button
+                                    size="sm"
+                                    variant="outline"
+                                    onClick={() => cycleStatus(evt.id, evt.status, evt.type)}
+                                    disabled={saving}
+                                  >
+                                    Toggle status
+                                  </Button>
+                                </TableCell>
+                              </TableRow>
+                            ))}
+                            {memberEvents.length === 0 && (
+                              <TableRow>
+                                <TableCell colSpan={6} className="py-4 text-center text-muted-foreground">
+                                  No events yet.
+                                </TableCell>
+                              </TableRow>
+                            )}
+                          </TableBody>
+                        </Table>
+                      </div>
+                    </div>
                   </>
                 ) : (
                   <p className="text-sm text-muted-foreground">Select a member to edit.</p>
