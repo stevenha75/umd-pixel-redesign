@@ -243,6 +243,36 @@ export default function ActivitiesPage() {
                   Set multiplier
                 </Button>
               </div>
+              {targetActivity && (
+                <div className="overflow-x-auto">
+                  <Table>
+                    <TableHeader>
+                      <TableRow>
+                        <TableHead>User</TableHead>
+                        <TableHead className="text-right">Multiplier</TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {activitiesQuery.data
+                        ?.find((a) => a.id === targetActivity)
+                        ?.multipliers.map((m) => (
+                          <TableRow key={m.userId}>
+                            <TableCell className="text-foreground">{m.userId}</TableCell>
+                            <TableCell className="text-right text-muted-foreground">
+                              {m.multiplier}
+                            </TableCell>
+                          </TableRow>
+                        )) ?? (
+                        <TableRow>
+                          <TableCell colSpan={2} className="py-4 text-center text-muted-foreground">
+                            No multipliers yet.
+                          </TableCell>
+                        </TableRow>
+                      )}
+                    </TableBody>
+                  </Table>
+                </div>
+              )}
             </CardContent>
           </Card>
         </div>

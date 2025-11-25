@@ -84,6 +84,7 @@ export default function AdminPage() {
   const [attendeeInput, setAttendeeInput] = useState("");
   const [attendeeEmails, setAttendeeEmails] = useState("");
   const [attendeeEventId, setAttendeeEventId] = useState<string | null>(null);
+  const [eventSearch, setEventSearch] = useState("");
 
   const eventSchema = z.object({
     name: z.string().trim().min(1, "Name is required."),
@@ -328,8 +329,12 @@ export default function AdminPage() {
       if (sortKey === "name") return dir * a.name.localeCompare(b.name);
       return dir * new Date(a.date).getTime() - dir * new Date(b.date).getTime();
     });
-    return copy;
-  }, [events, sortDir, sortKey]);
+    if (!eventSearch.trim()) return copy;
+    const term = eventSearch.toLowerCase();
+    return copy.filter(
+      (evt) => evt.name.toLowerCase().includes(term) || evt.type.toLowerCase().includes(term)
+    );
+  }, [events, sortDir, sortKey, eventSearch]);
 
   const toggleSort = (key: "date" | "name" | "pixels") => {
     if (sortKey === key) {
@@ -468,7 +473,15 @@ export default function AdminPage() {
                 <CardTitle>Events</CardTitle>
                 <CardDescription>Sorted table of events for the current semester.</CardDescription>
               </div>
-              <span className="text-sm text-muted-foreground">{events.length} total</span>
+              <div className="flex flex-col gap-2 md:flex-row md:items-center md:gap-3">
+                <Input
+                  placeholder="Search events"
+                  value={eventSearch}
+                  onChange={(e) => setEventSearch(e.target.value)}
+                  className="md:w-56"
+                />
+                <span className="text-sm text-muted-foreground">{events.length} total</span>
+              </div>
             </CardHeader>
             <CardContent>
               {loading ? (

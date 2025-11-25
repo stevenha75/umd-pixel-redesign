@@ -10,12 +10,14 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { doc, getDoc, updateDoc } from "firebase/firestore";
 import { db } from "@/lib/firebase";
 import { useQuery } from "@tanstack/react-query";
+import { setAdminFlag } from "@/lib/api";
 
 export default function SettingsPage() {
   const [currentSemesterId, setCurrentSemesterId] = useState("");
   const [isLeadershipOn, setIsLeadershipOn] = useState(false);
   const [saving, setSaving] = useState(false);
   const [message, setMessage] = useState<string | null>(null);
+  const [adminId, setAdminId] = useState("");
 
   const settingsQuery = useQuery({
     queryKey: ["admin-settings"],
@@ -46,6 +48,22 @@ export default function SettingsPage() {
     } catch (err) {
       console.error(err);
       setMessage("Failed to save settings.");
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const handleAddAdmin = async () => {
+    if (!adminId.trim()) return;
+    setSaving(true);
+    setMessage(null);
+    try {
+      await setAdminFlag(adminId.trim(), true);
+      setAdminId("");
+      setMessage("Admin access granted.");
+    } catch (err) {
+      console.error(err);
+      setMessage("Failed to update admin.");
     } finally {
       setSaving(false);
     }
@@ -92,6 +110,23 @@ export default function SettingsPage() {
                 </Button>
                 {message && <span className="text-sm text-muted-foreground">{message}</span>}
               </div>
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardHeader>
+              <CardTitle>Admin access</CardTitle>
+              <CardDescription>Grant admin to a user ID.</CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-3">
+              <Input
+                value={adminId}
+                onChange={(e) => setAdminId(e.target.value)}
+                placeholder="User ID"
+              />
+              <Button onClick={handleAddAdmin} disabled={saving}>
+                Grant admin
+              </Button>
             </CardContent>
           </Card>
         </div>

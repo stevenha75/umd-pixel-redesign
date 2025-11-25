@@ -305,6 +305,10 @@ export async function deleteMember(userId: string) {
   await deleteDoc(doc(db, "users", userId));
 }
 
+export async function setAdminFlag(userId: string, isAdmin: boolean) {
+  await updateDoc(doc(db, "users", userId), { isAdmin });
+}
+
 export async function addAttendeesByEmail(eventId: string, emails: string[]) {
   const unique = Array.from(new Set(emails.map((e) => e.trim()).filter(Boolean)));
   const foundIds: string[] = [];
