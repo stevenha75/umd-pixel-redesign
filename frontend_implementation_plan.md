@@ -58,7 +58,7 @@ Replicates `umd-pixel-old/pages/homePage.tsx` with modern UI.
 - [ ] **Pixel Log Table**
     - [ ] **Component**: `Table` from shadcn/ui.
     - [x] **Columns**: Date, Name, Type, Attendance, Pixels Allocated, Pixels Earned.
-    - [ ] **Pagination/Sorting**: Client-side via TanStack Table utilities.
+    - [x] **Pagination/Sorting**: Client-side pagination added; sorting TBD.
 
 - [ ] **Manual Adjustment Section**
     - [ ] **Component**: `Card` or `Alert` component.
@@ -79,7 +79,9 @@ Replicates `umd-pixel-old/pages/homePage.tsx` with modern UI.
 - [ ] **Forms**
     - [ ] Use `Input`, `Select`, `Button` for creating/editing events.
     - [ ] Validate with Zod; submit via Functions/Firestore.
-    - [ ] Excused absence approval flow (status chip + action).
+    - [x] Excused absence approval flow (status chip + action).
+    - [x] Display excused absence requests with event/user context and approve/reject actions.
+    - [x] Basic form validation/errors on create event.
     - [x] Display excused absence requests with event/user context and approve/reject actions.
 
 ### 4b. Member/Attendance Data Handling

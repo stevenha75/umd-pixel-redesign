@@ -51,6 +51,7 @@ export default function AdminPage() {
   const [form, setForm] = useState(defaultEvent);
   const [saving, setSaving] = useState(false);
   const [message, setMessage] = useState<string | null>(null);
+  const [errors, setErrors] = useState<Record<string, string>>({});
 
   useEffect(() => {
     const load = async () => {
@@ -113,7 +114,17 @@ export default function AdminPage() {
     setForm((f) => ({ ...f, [key]: value }));
   };
 
+  const validateForm = () => {
+    const nextErrors: Record<string, string> = {};
+    if (!form.name.trim()) nextErrors.name = "Name is required.";
+    if (!form.date) nextErrors.date = "Date/time is required.";
+    if (form.pixels < 0) nextErrors.pixels = "Pixels cannot be negative.";
+    setErrors(nextErrors);
+    return Object.keys(nextErrors).length === 0;
+  };
+
   const createEvent = async () => {
+    if (!validateForm()) return;
     setSaving(true);
     setMessage(null);
     try {
@@ -266,6 +277,7 @@ export default function AdminPage() {
                   onChange={(e) => onChange("name", e.target.value)}
                   placeholder="Event name"
                 />
+                {errors.name && <span className="text-xs text-rose-600">{errors.name}</span>}
               </label>
               <label className="flex flex-col gap-2 text-sm text-zinc-700">
                 Date
@@ -275,6 +287,7 @@ export default function AdminPage() {
                   value={form.date}
                   onChange={(e) => onChange("date", e.target.value)}
                 />
+                {errors.date && <span className="text-xs text-rose-600">{errors.date}</span>}
               </label>
               <label className="flex flex-col gap-2 text-sm text-zinc-700">
                 Type
@@ -302,6 +315,7 @@ export default function AdminPage() {
                   onChange={(e) => onChange("pixels", Number(e.target.value))}
                   min={0}
                 />
+                {errors.pixels && <span className="text-xs text-rose-600">{errors.pixels}</span>}
               </label>
             </div>
             <div className="mt-4 flex items-center gap-3">
