@@ -7,9 +7,9 @@ if (!admin.apps.length) {
     admin.initializeApp();
 }
 
-const SLACK_CLIENT_ID = process.env.SLACK_CLIENT_ID;
-const SLACK_CLIENT_SECRET = process.env.SLACK_CLIENT_SECRET;
-const SLACK_TEAM_ID = process.env.SLACK_TEAM_ID;
+const SLACK_CLIENT_ID = functions.config().slack?.client_id || process.env.SLACK_CLIENT_ID;
+const SLACK_CLIENT_SECRET = functions.config().slack?.client_secret || process.env.SLACK_CLIENT_SECRET;
+const SLACK_TEAM_ID = functions.config().slack?.team_id || process.env.SLACK_TEAM_ID;
 
 function assertSlackConfig() {
     if (!SLACK_CLIENT_ID || !SLACK_CLIENT_SECRET) {
