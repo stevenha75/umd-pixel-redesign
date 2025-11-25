@@ -1,13 +1,29 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { Suspense, useEffect, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { httpsCallable } from "firebase/functions";
 import { signInWithCustomToken } from "firebase/auth";
 import { auth, functions } from "@/lib/firebase";
-import { Suspense } from "react";
 
-export default function SlackCallback() {
+export default function CallbackPage() {
+  return (
+    <Suspense
+      fallback={
+        <div className="min-h-screen flex items-center justify-center bg-gray-100">
+          <div className="bg-white p-8 rounded-lg shadow-md text-center">
+            <h1 className="text-2xl font-bold mb-4">Completing sign-in…</h1>
+            <p className="text-gray-600">Loading…</p>
+          </div>
+        </div>
+      }
+    >
+      <SlackCallback />
+    </Suspense>
+  );
+}
+
+function SlackCallback() {
   const searchParams = useSearchParams();
   const router = useRouter();
   const [status, setStatus] = useState("Signing you in...");
@@ -54,22 +70,11 @@ export default function SlackCallback() {
   }, [router, searchParams]);
 
   return (
-    <Suspense
-      fallback={
-        <div className="min-h-screen flex items-center justify-center bg-gray-100">
-          <div className="bg-white p-8 rounded-lg shadow-md text-center">
-            <h1 className="text-2xl font-bold mb-4">Completing sign-in…</h1>
-            <p className="text-gray-600">Loading…</p>
-          </div>
-        </div>
-      }
-    >
-      <div className="min-h-screen flex items-center justify-center bg-gray-100">
-        <div className="bg-white p-8 rounded-lg shadow-md text-center">
-          <h1 className="text-2xl font-bold mb-4">Completing sign-in…</h1>
-          <p className="text-gray-600">{status}</p>
-        </div>
+    <div className="min-h-screen flex items-center justify-center bg-gray-100">
+      <div className="bg-white p-8 rounded-lg shadow-md text-center">
+        <h1 className="text-2xl font-bold mb-4">Completing sign-in…</h1>
+        <p className="text-gray-600">{status}</p>
       </div>
-    </Suspense>
+    </div>
   );
 }
