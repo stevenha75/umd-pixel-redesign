@@ -37,54 +37,54 @@ Recreate the user interface for Members and Admins with feature parity to `umd-p
     - [ ] Add TanStack Query provider at root; hydration boundary for SSR data.
     - [ ] Create typed API client for Firestore/Functions calls.
 - [ ] **Auth Wrapper**
-    - [ ] Protect routes with `AuthProvider` + redirect for unauthenticated users.
+    - [x] Protect routes with `AuthProvider` + redirect for unauthenticated users.
 
 ### 2. Core Components
 - [ ] **Navbar** (`src/components/Navbar.tsx`)
-    - [ ] **Logo**: Display Hack4Impact Logo.
-    - [ ] **Admin Button**: `Button` variant="ghost" or "outline". Show ONLY if `user.isAdmin`.
-    - [ ] **User Menu**: `DropdownMenu` with Avatar and Logout option.
+    - [x] **Logo**: Display Hack4Impact Logo.
+    - [x] **Admin Button**: `Button` variant="ghost" or "outline". Show ONLY if `user.isAdmin`.
+    - [x] **User Menu**: `DropdownMenu` with Avatar and Logout option.
     - [ ] **Responsive**: Mobile menu for smaller screens.
 
 ### 3. Dashboard Page (`src/app/page.tsx`)
 Replicates `umd-pixel-old/pages/homePage.tsx` with modern UI.
 
-- [ ] **Header Section**
-    - [ ] **Welcome Message**: "Welcome, {firstName} {lastName}!"
-    - [ ] **Pixel Summary**: `Card` displaying "You have {pixels} pixels".
-    - [ ] **Email Info**: Text display.
-    - [ ] **Pixel Delta Notice**: Show delta if non-zero.
+- [x] **Header Section**
+    - [x] **Welcome Message**: "Welcome, {firstName} {lastName}!"
+    - [x] **Pixel Summary**: `Card` displaying "You have {pixels} pixels".
+    - [x] **Email Info**: Text display.
+    - [x] **Pixel Delta Notice**: Show delta if non-zero.
 
 - [ ] **Pixel Log Table**
     - [ ] **Component**: `Table` from shadcn/ui.
-    - [ ] **Columns**: Date, Name, Type, Attendance, Pixels Allocated, Pixels Earned.
+    - [x] **Columns**: Date, Name, Type, Attendance, Pixels Allocated, Pixels Earned.
     - [ ] **Pagination/Sorting**: Client-side via TanStack Table utilities.
 
 - [ ] **Manual Adjustment Section**
     - [ ] **Component**: `Card` or `Alert` component.
     - [ ] **Condition**: Only show if `pixelDelta != 0`.
 
-- [ ] **Leaderboard Section**
-    - [ ] **Condition**: Check `settings/global` -> `isLeadershipOn`.
-    - [ ] **Component**: `Table`.
-    - [ ] **Content**: Top 10 users.
-    - [ ] **Empty State**: If disabled, show hint.
+- [x] **Leaderboard Section**
+    - [x] **Condition**: Check `settings/global` -> `isLeadershipOn`.
+    - [x] **Component**: `Table`.
+    - [x] **Content**: Top 10 users.
+    - [x] **Empty State**: If disabled, show hint.
 
 ### 4. Admin Portal (`src/app/admin/...`)
 - [ ] **Admin Layout**
     - [ ] Sidebar using `Button` variants for navigation.
-- [ ] **Events Management**
-    - [ ] `Table` listing events (name, date/time, type, pixels, attendees count).
-    - [ ] `Button` "Create Event" -> Opens `Dialog` or redirects to page.
+- [x] **Events Management**
+    - [x] `Table` listing events (name, date/time, type, pixels, attendees count).
+    - [x] `Button` "Create Event" -> Opens `Dialog` or redirects to page.
 - [ ] **Forms**
     - [ ] Use `Input`, `Select`, `Button` for creating/editing events.
     - [ ] Validate with Zod; submit via Functions/Firestore.
     - [ ] Excused absence approval flow (status chip + action).
 
 ### 4b. Member/Attendance Data Handling
-- [ ] Fetch pixel log and leaderboard using Firestore queries equivalent to legacy logic (attended + pixels > 0; respect `pixelDelta/pixelCached`).
-- [ ] Ensure excused absences remove pixel credit (parity with old app).
-- [ ] Sync current semester from `settings/global`.
+- [x] Fetch pixel log and leaderboard using Firestore queries equivalent to legacy logic (attended + pixels > 0; respect `pixelDelta/pixelCached`).
+- [x] Ensure excused absences remove pixel credit (parity with old app).
+- [x] Sync current semester from `settings/global`.
 
 ### 5. Routing & Auth States
 - [ ] Public: `/login`, `/auth/callback`.
