@@ -381,3 +381,11 @@ export async function setActivityMultiplier(activityId: string, userId: string, 
     [`multipliers.${userId}`]: multiplier,
   } as any);
 }
+
+export async function findUserIdByEmail(email: string): Promise<string | null> {
+  const snap = await getDocs(
+    query(collection(db, "users"), where("email", "==", email.toLowerCase()))
+  );
+  if (snap.empty) return null;
+  return snap.docs[0].id;
+}

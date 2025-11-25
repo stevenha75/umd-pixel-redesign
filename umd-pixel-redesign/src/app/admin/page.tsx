@@ -35,6 +35,7 @@ import {
   addAttendee,
   removeAttendee,
   addAttendeesByEmail,
+  findUserIdByEmail,
 } from "@/lib/api";
 import { useQuery } from "@tanstack/react-query";
 import { Textarea } from "@/components/ui/textarea";
@@ -330,6 +331,38 @@ export default function AdminPage() {
       next.has(id) ? next.delete(id) : next.add(id);
       return next;
     });
+  };
+
+  const addAttendeeByEmail = async () => {
+    if (!attendeeEventId || !attendeeInput.trim()) return;
+    setSaving(true);
+    setMessage(null);
+    try {
+      const uid = await findUserIdByEmail(attendeeInput.trim());
+      if (!uid) {
+        setMessage("User not found for that email.");
+        return;
+      }
+      await addAttendee(attendeeEventId, uid);
+      setEvents((prev) =>
+        prev.map((evt) =>
+          evt.id === attendeeEventId
+            ? {
+                ...evt,
+                attendeesCount: evt.attendeesCount + 1,
+                attendees: [...evt.attendees, { id: uid, name: uid, email: attendeeInput.trim() }],
+              }
+            : evt
+        )
+      );
+      setAttendeeInput("");
+      setMessage("Attendee added by email.");
+    } catch (err) {
+      console.error(err);
+      setMessage("Failed to add attendee by email.");
+    } finally {
+      setSaving(false);
+    }
   };
 
   const bulkDeleteEvents = async () => {
@@ -771,18 +804,30 @@ export default function AdminPage() {
                       <SelectValue placeholder="Select event" />
                     </SelectTrigger>
                     <SelectContent>
-                    {sortedEvents.map((evt) => (
-                      <SelectItem key={evt.id} value={evt.id}>
-                        {evt.name}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
+                      {sortedEvents.map((evt) => (
+                        <SelectItem key={evt.id} value={evt.id}>
+                          {evt.name}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div className="flex items-center gap-2">
+                  <Button
+                    onClick={handleAddAttendee}
+                    disabled={saving || !attendeeInput || !attendeeEventId}
+                    variant="outline"
+                  >
+                    Add by ID
+                  </Button>
+                  <Button
+                    onClick={addAttendeeByEmail}
+                    disabled={saving || !attendeeInput || !attendeeEventId}
+                  >
+                    Add by email
+                  </Button>
+                </div>
               </div>
-              <Button onClick={handleAddAttendee} disabled={saving || !attendeeInput || !attendeeEventId}>
-                Add attendee
-              </Button>
-            </div>
               <div className="flex flex-col gap-2">
                 <label className="text-sm text-muted-foreground">
                   Paste emails (space, comma, or newline separated)

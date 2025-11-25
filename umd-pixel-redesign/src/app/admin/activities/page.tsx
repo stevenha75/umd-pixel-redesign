@@ -17,6 +17,7 @@ import {
   fetchAdminData,
   setActivityMultiplier,
   updateActivity,
+  findUserIdByEmail,
 } from "@/lib/api";
 
 export default function ActivitiesPage() {
@@ -70,7 +71,16 @@ export default function ActivitiesPage() {
     if (!targetActivity || !multiplierUser.trim()) return;
     setSaving(true);
     try {
-      await setActivityMultiplier(targetActivity, multiplierUser.trim(), Number(multiplierValue) || 1);
+      const value = Number(multiplierValue) || 1;
+      const emailLookup = multiplierUser.includes("@");
+      const userId = emailLookup
+        ? await findUserIdByEmail(multiplierUser.trim())
+        : multiplierUser.trim();
+      if (!userId) {
+        setSaving(false);
+        return;
+      }
+      await setActivityMultiplier(targetActivity, userId, value);
       await activitiesQuery.refetch();
       setMultiplierUser("");
       setMultiplierValue(1);
