@@ -81,7 +81,8 @@ Replicates `umd-pixel-old/pages/homePage.tsx` with modern UI.
     - [ ] Validate with Zod; submit via Functions/Firestore.
     - [x] Excused absence approval flow (status chip + action).
     - [x] Display excused absence requests with event/user context and approve/reject actions.
-    - [x] Basic form validation/errors on create event.
+    - [x] Basic form validation/errors on create/edit event.
+    - [x] Edit existing events inline (name/type/date/pixels).
     - [x] Display excused absence requests with event/user context and approve/reject actions.
 
 ### 4b. Member/Attendance Data Handling

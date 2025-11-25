@@ -49,6 +49,7 @@ export default function AdminPage() {
   const [excused, setExcused] = useState<ExcusedRow[]>([]);
   const [loading, setLoading] = useState(true);
   const [form, setForm] = useState(defaultEvent);
+  const [editingId, setEditingId] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
   const [message, setMessage] = useState<string | null>(null);
   const [errors, setErrors] = useState<Record<string, string>>({});
@@ -57,49 +58,7 @@ export default function AdminPage() {
     const load = async () => {
       setLoading(true);
       try {
-        const settingsSnap = await getDoc(doc(db, "settings", "global"));
-        const currentSemesterId = settingsSnap.data()?.currentSemesterId;
-        const q = currentSemesterId
-          ? query(collection(db, "events"), orderBy("date", "desc"))
-          : query(collection(db, "events"), orderBy("date", "desc"));
-        const snap = await getDocs(q);
-        const rows: EventRow[] = [];
-        snap.forEach((d) => {
-          const data = d.data() as any;
-          const date = data.date?.toDate ? data.date.toDate() : new Date(data.date || Date.now());
-          rows.push({
-            id: d.id,
-            name: data.name || data.eventName || "Event",
-            date: date.toLocaleDateString(),
-            type: data.type || "GBM",
-            pixels: data.pixels || 0,
-            attendeesCount: Array.isArray(data.attendees) ? data.attendees.length : 0,
-          });
-        });
-        setEvents(rows);
-
-        const excusedSnap = await getDocs(
-          query(collectionGroup(db, "excused_absences"), orderBy("createdAt", "desc"))
-        );
-        const excusedRows: ExcusedRow[] = [];
-        const eventNameMap = new Map<string, string>();
-        rows.forEach((evt) => eventNameMap.set(evt.id, evt.name));
-
-        excusedSnap.forEach((d) => {
-          const data = d.data() as any;
-          excusedRows.push({
-            id: d.id,
-            eventId: d.ref.parent.parent?.id || "",
-            eventName: eventNameMap.get(d.ref.parent.parent?.id || "") || "Event",
-            userId: data.userId || "",
-            userName: "",
-            userEmail: "",
-            reason: data.reason || "",
-            status: data.status || "pending",
-          });
-        });
-        await enrichUsers(excusedRows);
-        setExcused(excusedRows);
+        await refreshEvents(true);
       } catch (err) {
         console.error(err);
         setMessage("Could not load events.");
@@ -109,6 +68,12 @@ export default function AdminPage() {
     };
     load();
   }, []);
+
+  const resetForm = () => {
+    setForm(defaultEvent);
+    setEditingId(null);
+    setErrors({});
+  };
 
   const onChange = (key: string, value: any) => {
     setForm((f) => ({ ...f, [key]: value }));
@@ -151,7 +116,7 @@ export default function AdminPage() {
         },
         ...prev,
       ]);
-      setForm(defaultEvent);
+      resetForm();
       setMessage("Event created.");
     } catch (err) {
       console.error(err);
@@ -161,9 +126,11 @@ export default function AdminPage() {
     }
   };
 
-  const refreshPixels = async () => {
-    setSaving(true);
-    setMessage(null);
+  const refreshEvents = async (initial = false) => {
+    if (!initial) {
+      setSaving(true);
+      setMessage(null);
+    }
     try {
       const settingsSnap = await getDoc(doc(db, "settings", "global"));
       const currentSemesterId = settingsSnap.data()?.currentSemesterId;
@@ -207,12 +174,12 @@ export default function AdminPage() {
       });
       await enrichUsers(excusedRows);
       setExcused(excusedRows);
-      setMessage("Refreshed events.");
+      if (!initial) setMessage("Refreshed events.");
     } catch (err) {
       console.error(err);
-      setMessage("Failed to refresh events.");
+      if (!initial) setMessage("Failed to refresh events.");
     } finally {
-      setSaving(false);
+      if (!initial) setSaving(false);
     }
   };
 
@@ -252,6 +219,53 @@ export default function AdminPage() {
         }
       })
     );
+  };
+
+  const startEdit = (evt: EventRow) => {
+    setEditingId(evt.id);
+    setForm({
+      name: evt.name,
+      date: new Date(evt.date).toISOString().slice(0, 16),
+      type: evt.type,
+      pixels: evt.pixels,
+    });
+    setErrors({});
+  };
+
+  const saveEdit = async () => {
+    if (!editingId) return;
+    if (!validateForm()) return;
+    setSaving(true);
+    setMessage(null);
+    try {
+      const dateValue = form.date ? Timestamp.fromDate(new Date(form.date)) : Timestamp.now();
+      await updateDoc(doc(db, "events", editingId), {
+        name: form.name,
+        type: form.type,
+        pixels: Number(form.pixels) || 0,
+        date: dateValue,
+      });
+      setEvents((prev) =>
+        prev.map((evt) =>
+          evt.id === editingId
+            ? {
+                ...evt,
+                name: form.name,
+                type: form.type,
+                pixels: Number(form.pixels) || 0,
+                date: dateValue.toDate().toLocaleDateString(),
+              }
+            : evt
+        )
+      );
+      resetForm();
+      setMessage("Event updated.");
+    } catch (err) {
+      console.error(err);
+      setMessage("Failed to update event.");
+    } finally {
+      setSaving(false);
+    }
   };
 
   return (
@@ -318,16 +332,25 @@ export default function AdminPage() {
                 {errors.pixels && <span className="text-xs text-rose-600">{errors.pixels}</span>}
               </label>
             </div>
-            <div className="mt-4 flex items-center gap-3">
+            <div className="mt-4 flex flex-wrap items-center gap-3">
               <button
-                onClick={createEvent}
+                onClick={editingId ? saveEdit : createEvent}
                 disabled={saving}
                 className="rounded-full bg-black px-4 py-2 text-sm font-medium text-white hover:bg-zinc-800 disabled:opacity-60"
               >
-                {saving ? "Saving…" : "Create event"}
+                {saving ? "Saving…" : editingId ? "Save changes" : "Create event"}
               </button>
+              {editingId && (
+                <button
+                  onClick={resetForm}
+                  disabled={saving}
+                  className="rounded-full border border-zinc-300 px-4 py-2 text-sm font-medium text-zinc-800 hover:bg-zinc-50 disabled:opacity-60"
+                >
+                  Cancel
+                </button>
+              )}
               <button
-                onClick={refreshPixels}
+                onClick={() => refreshEvents()}
                 disabled={saving}
                 className="rounded-full border border-zinc-300 px-4 py-2 text-sm font-medium text-zinc-800 hover:bg-zinc-50 disabled:opacity-60"
               >
@@ -354,6 +377,7 @@ export default function AdminPage() {
                       <th className="px-3 py-2 font-medium">Type</th>
                       <th className="px-3 py-2 font-medium text-right">Pixels</th>
                       <th className="px-3 py-2 font-medium text-right">Attendees</th>
+                      <th className="px-3 py-2 font-medium text-right">Actions</th>
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-zinc-100">
@@ -364,11 +388,19 @@ export default function AdminPage() {
                         <td className="px-3 py-2 text-zinc-700">{evt.type}</td>
                         <td className="px-3 py-2 text-right text-zinc-800">{evt.pixels}</td>
                         <td className="px-3 py-2 text-right text-zinc-800">{evt.attendeesCount}</td>
+                        <td className="px-3 py-2 text-right">
+                          <button
+                            onClick={() => startEdit(evt)}
+                            className="rounded-full border border-zinc-200 px-3 py-1 text-xs font-medium text-zinc-700 hover:bg-zinc-50"
+                          >
+                            Edit
+                          </button>
+                        </td>
                       </tr>
                     ))}
                     {events.length === 0 && (
                       <tr>
-                        <td colSpan={5} className="px-3 py-6 text-center text-zinc-500">
+                        <td colSpan={6} className="px-3 py-6 text-center text-zinc-500">
                           No events yet.
                         </td>
                       </tr>
