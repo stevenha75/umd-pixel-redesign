@@ -3,9 +3,10 @@ type Props = {
   email: string;
   pixelTotal: number;
   pixelDelta: number;
+  rank?: number;
 };
 
-export function PixelSummary({ name, email, pixelTotal, pixelDelta }: Props) {
+export function PixelSummary({ name, email, pixelTotal, pixelDelta, rank }: Props) {
   return (
     <div className="grid gap-4 md:grid-cols-[2fr,1fr]">
       <div className="rounded-2xl border border-border bg-card p-6 shadow-sm">
@@ -18,6 +19,9 @@ export function PixelSummary({ name, email, pixelTotal, pixelDelta }: Props) {
           <div className="text-4xl font-bold text-foreground">{pixelTotal}</div>
           <div className="text-sm text-muted-foreground">pixels</div>
         </div>
+        {rank && (
+          <div className="mt-2 text-sm text-muted-foreground">Rank: #{rank}</div>
+        )}
       </div>
       {pixelDelta !== 0 && (
         <div className="rounded-2xl border border-amber-200 bg-amber-50 px-4 py-4 text-sm text-amber-900 shadow-sm">

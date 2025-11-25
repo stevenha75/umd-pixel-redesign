@@ -161,6 +161,8 @@ export async function fetchDashboardData(userId: string): Promise<DashboardData>
   }
 
   const name = `${userData.firstName || ""} ${userData.lastName || ""}`.trim() || "Member";
+  const rankIndex = leaderboard.findIndex((row) => row.id === userId);
+  const rank = rankIndex >= 0 ? rankIndex + 1 : undefined;
 
   return {
     userName: name,
@@ -171,5 +173,6 @@ export async function fetchDashboardData(userId: string): Promise<DashboardData>
     leaderboard,
     leaderboardEnabled,
     activities,
+    rank,
   };
 }

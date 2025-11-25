@@ -44,6 +44,7 @@ export default function Home() {
                 email={data.email}
                 pixelTotal={data.pixelTotal}
                 pixelDelta={data.pixelDelta}
+                rank={data.rank}
               />
               <AdjustmentNotice pixelDelta={data.pixelDelta} />
               <PixelLogTable rows={data.pixelLog} />

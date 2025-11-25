@@ -34,8 +34,10 @@ import {
   updateExcusedStatus as apiUpdateExcusedStatus,
   addAttendee,
   removeAttendee,
+  addAttendeesByEmail,
 } from "@/lib/api";
 import { useQuery } from "@tanstack/react-query";
+import { Textarea } from "@/components/ui/textarea";
 
 type EventRow = {
   id: string;
@@ -80,6 +82,7 @@ export default function AdminPage() {
   const [sortDir, setSortDir] = useState<"asc" | "desc">("desc");
   const [currentSemesterId, setCurrentSemesterId] = useState<string | null>(null);
   const [attendeeInput, setAttendeeInput] = useState("");
+  const [attendeeEmails, setAttendeeEmails] = useState("");
   const [attendeeEventId, setAttendeeEventId] = useState<string | null>(null);
 
   const eventSchema = z.object({
@@ -252,6 +255,41 @@ export default function AdminPage() {
     } catch (err) {
       console.error(err);
       setMessage("Failed to add attendee.");
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const handleAddAttendeesByEmail = async () => {
+    if (!attendeeEventId || !attendeeEmails.trim()) return;
+    setSaving(true);
+    setMessage(null);
+    try {
+      const emails = attendeeEmails
+        .replace(/\n/g, " ")
+        .split(/[ ,]+/)
+        .map((e) => e.trim())
+        .filter(Boolean);
+      const added = await addAttendeesByEmail(attendeeEventId, emails);
+      setEvents((prev) =>
+        prev.map((evt) =>
+          evt.id === attendeeEventId
+            ? {
+                ...evt,
+                attendeesCount: evt.attendeesCount + added.length,
+                attendees: [
+                  ...evt.attendees,
+                  ...added.map((id) => ({ id, name: id, email: "" })),
+                ],
+              }
+            : evt
+        )
+      );
+      setAttendeeEmails("");
+      setMessage(`Added ${added.length} attendees by email.`);
+    } catch (err) {
+      console.error(err);
+      setMessage("Failed to add attendees by email.");
     } finally {
       setSaving(false);
     }
@@ -603,7 +641,7 @@ export default function AdminPage() {
           <Card>
             <CardHeader>
               <CardTitle>Manage Attendees</CardTitle>
-              <CardDescription>Add or remove attendees by user ID.</CardDescription>
+              <CardDescription>Add or remove attendees by user ID or email list.</CardDescription>
             </CardHeader>
             <CardContent className="space-y-4">
               <div className="flex flex-col gap-2 md:flex-row md:items-end md:gap-3">
@@ -622,16 +660,33 @@ export default function AdminPage() {
                       <SelectValue placeholder="Select event" />
                     </SelectTrigger>
                     <SelectContent>
-                      {sortedEvents.map((evt) => (
-                        <SelectItem key={evt.id} value={evt.id}>
-                          {evt.name}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </div>
-                <Button onClick={handleAddAttendee} disabled={saving || !attendeeInput || !attendeeEventId}>
-                  Add attendee
+                    {sortedEvents.map((evt) => (
+                      <SelectItem key={evt.id} value={evt.id}>
+                        {evt.name}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+              <Button onClick={handleAddAttendee} disabled={saving || !attendeeInput || !attendeeEventId}>
+                Add attendee
+              </Button>
+            </div>
+              <div className="flex flex-col gap-2">
+                <label className="text-sm text-muted-foreground">
+                  Paste emails (space, comma, or newline separated)
+                </label>
+                <Textarea
+                  value={attendeeEmails}
+                  onChange={(e) => setAttendeeEmails(e.target.value)}
+                  placeholder="email1@domain.com email2@domain.com"
+                  rows={3}
+                />
+                <Button
+                  onClick={handleAddAttendeesByEmail}
+                  disabled={saving || !attendeeEventId || !attendeeEmails.trim()}
+                >
+                  Add by email
                 </Button>
               </div>
               {attendeeEventId && (
