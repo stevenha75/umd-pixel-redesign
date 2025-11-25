@@ -61,8 +61,8 @@ Replicates `umd-pixel-old/pages/homePage.tsx` with modern UI.
     - [x] **Pagination/Sorting**: Client-side pagination and sorting.
 
 - [ ] **Manual Adjustment Section**
-    - [ ] **Component**: `Card` or `Alert` component.
-    - [ ] **Condition**: Only show if `pixelDelta != 0`.
+    - [x] **Component**: `Card` or `Alert` component.
+    - [x] **Condition**: Only show if `pixelDelta != 0`.
 
 - [x] **Leaderboard Section**
     - [x] **Condition**: Check `settings/global` -> `isLeadershipOn`.
@@ -91,9 +91,9 @@ Replicates `umd-pixel-old/pages/homePage.tsx` with modern UI.
 - [x] Sync current semester from `settings/global`.
 
 ### 5. Routing & Auth States
-- [ ] Public: `/login`, `/auth/callback`.
-- [ ] Protected: `/`, `/admin`, `/admin/events`.
-- [ ] Loading and unauthorized states handled consistently (skeleton/spinner + redirect).
+- [x] Public: `/login`, `/auth/callback`.
+- [x] Protected: `/`, `/admin`, `/admin/events`.
+- [x] Loading and unauthorized states handled consistently (skeleton/spinner + redirect).
 
 ### 6. Theming & UX
 - [ ] Define Tailwind theme tokens for primary/secondary, background, border radius to match branding.

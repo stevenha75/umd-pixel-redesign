@@ -26,16 +26,20 @@ export function ProtectedRoute({ children, requireAdmin = false }: Props) {
 
   if (loading || !user) {
     return (
-      <div className="min-h-screen flex items-center justify-center">
-        <p className="text-gray-700">Loading...</p>
+      <div className="min-h-screen flex items-center justify-center bg-zinc-50">
+        <div className="rounded-2xl border border-zinc-200 bg-white px-6 py-4 text-sm text-zinc-700 shadow-sm">
+          Loading…
+        </div>
       </div>
     );
   }
 
   if (requireAdmin && !isAdmin) {
     return (
-      <div className="min-h-screen flex items-center justify-center">
-        <p className="text-gray-700">Admins only.</p>
+      <div className="min-h-screen flex items-center justify-center bg-zinc-50">
+        <div className="rounded-2xl border border-amber-200 bg-amber-50 px-6 py-4 text-sm text-amber-900 shadow-sm">
+          Admins only. You do not have access to this page.
+        </div>
       </div>
     );
   }
