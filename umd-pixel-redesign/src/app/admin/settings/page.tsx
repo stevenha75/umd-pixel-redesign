@@ -11,6 +11,8 @@ import { doc, getDoc, updateDoc } from "firebase/firestore";
 import { db } from "@/lib/firebase";
 import { useQuery } from "@tanstack/react-query";
 import { setAdminFlag } from "@/lib/api";
+import { CardFooter } from "@/components/ui/card";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 
 export default function SettingsPage() {
   const [currentSemesterId, setCurrentSemesterId] = useState("");
@@ -128,6 +130,44 @@ export default function SettingsPage() {
                 Grant admin
               </Button>
             </CardContent>
+          </Card>
+
+          <Card>
+            <CardHeader>
+              <CardTitle>Archive & reset</CardTitle>
+              <CardDescription>Manual safeguards; no destructive defaults.</CardDescription>
+            </CardHeader>
+            <CardFooter className="flex flex-col gap-2 md:flex-row md:items-center md:gap-3">
+              <Dialog>
+                <DialogTrigger asChild>
+                  <Button variant="outline">Export CSV (members/events)</Button>
+                </DialogTrigger>
+                <DialogContent>
+                  <DialogHeader>
+                    <DialogTitle>Export instructions</DialogTitle>
+                  </DialogHeader>
+                  <p className="text-sm text-muted-foreground">
+                    Use the admin tables to export client-side CSVs (planned) or run Firestore export
+                    via CLI. No automated archive/reset is performed to avoid data loss.
+                  </p>
+                </DialogContent>
+              </Dialog>
+              <Dialog>
+                <DialogTrigger asChild>
+                  <Button variant="outline">Reset semester (manual)</Button>
+                </DialogTrigger>
+                <DialogContent>
+                  <DialogHeader>
+                    <DialogTitle>Reset semester</DialogTitle>
+                  </DialogHeader>
+                  <p className="text-sm text-muted-foreground">
+                    To reset: 1) archive events/activities to a collection copy, 2) clear attendees,
+                    excused absences, multipliers, 3) set new `currentSemesterId`. This UI does not
+                    automate resets to prevent unintended data loss.
+                  </p>
+                </DialogContent>
+              </Dialog>
+            </CardFooter>
           </Card>
         </div>
       </AdminLayout>
