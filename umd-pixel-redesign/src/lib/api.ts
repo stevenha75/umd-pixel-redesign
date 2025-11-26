@@ -78,6 +78,7 @@ export type MemberRecord = {
   pixels: number;
   pixelDelta: number;
   rank?: number;
+  slackId?: string;
 };
 
 export type ActivityRecord = {
@@ -296,6 +297,7 @@ export async function fetchMembers(): Promise<MemberRecord[]> {
       pixels: data.pixelCached ?? data.pixels ?? 0,
       pixelDelta: data.pixelDelta ?? data.pixeldelta ?? 0,
       rank: idx + 1,
+      slackId: data.slackId,
     };
   });
 }
