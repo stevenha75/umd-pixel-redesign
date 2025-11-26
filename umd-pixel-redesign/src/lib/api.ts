@@ -470,11 +470,6 @@ export async function fetchUserDetails(ids: string[]) {
   return details;
 }
 
-export async function mergeMembers(sourceUserId: string, targetUserId: string) {
-  const mergeUsersFn = httpsCallable(functions, "mergeUsers");
-  await mergeUsersFn({ sourceUserId, targetUserId });
-}
-
 export async function fetchSlackUsers(): Promise<SlackUser[]> {
   const getSlackUsersFn = httpsCallable<Record<string, never>, { members: SlackUser[] }>(
     functions,

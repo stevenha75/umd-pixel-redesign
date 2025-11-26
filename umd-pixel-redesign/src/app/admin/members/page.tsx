@@ -28,13 +28,11 @@ import {
   fetchSlackUsers,
   addSlackMember,
   SlackUser,
-  mergeMembers,
 } from "@/lib/api";
 import {
     Dialog,
     DialogContent,
     DialogDescription,
-    DialogFooter,
     DialogHeader,
     DialogTitle,
     DialogTrigger,
@@ -50,9 +48,7 @@ export default function MembersPage() {
   const [newMember, setNewMember] = useState({ firstName: "", lastName: "", email: "" });
   const [eventTarget, setEventTarget] = useState("");
   const [saving, setSaving] = useState(false);
-  const [mergeDialogOpen, setMergeDialogOpen] = useState(false);
-  const [mergeTargetId, setMergeTargetId] = useState<string>("");
-  
+
   // Slack State
   const [slackOpen, setSlackOpen] = useState(false);
   const [slackUsers, setSlackUsers] = useState<SlackUser[]>([]);
@@ -197,32 +193,6 @@ export default function MembersPage() {
       return filteredSlackUsers.slice(0, 50);
   }, [filteredSlackUsers]);
 
-  const handleMerge = async () => {
-    if (selected.size !== 2 || !mergeTargetId) return;
-    
-    const ids = Array.from(selected);
-    const sourceId = ids.find(id => id !== mergeTargetId);
-    
-    if (!sourceId || !mergeTargetId || sourceId === mergeTargetId) return;
-
-    setSaving(true);
-    try {
-        await mergeMembers(sourceId, mergeTargetId);
-        
-        await membersQuery.refetch();
-        
-        clearSelection();
-        setMergeTargetId("");
-        setMergeDialogOpen(false);
-        
-        setMessage("Members merged successfully.");
-    } catch (error) {
-        console.error("Merge failed:", error);
-        setMessage("Failed to merge members.");
-    } finally {
-        setSaving(false);
-    }
-  };
 
   const [message, setMessage] = useState<string | null>(null);
 
@@ -373,15 +343,6 @@ export default function MembersPage() {
                 <Button onClick={handleAddToEvent} disabled={saving || selected.size === 0 || !eventTarget}>
                   Add to event
                 </Button>
-                {selected.size === 2 && (
-                    <Button 
-                        variant="secondary"
-                        onClick={() => setMergeDialogOpen(true)}
-                        disabled={saving}
-                    >
-                        Merge selected
-                    </Button>
-                )}
                 <Button
                   variant="destructive"
                   onClick={handleDeleteSelected}
@@ -650,56 +611,6 @@ export default function MembersPage() {
           </div>
         </div>
       </AdminLayout>
-
-      <Dialog open={mergeDialogOpen} onOpenChange={(open) => {
-        if (!open) {
-            setMergeDialogOpen(false);
-            setMergeTargetId("");
-        } else {
-            setMergeDialogOpen(true);
-        }
-      }}>
-        <DialogContent>
-            <DialogHeader>
-                <DialogTitle>Merge Members</DialogTitle>
-                <DialogDescription>
-                    You are about to merge 2 users. This cannot be undone.
-                    Select the account to <strong>KEEP</strong> (the other will be deleted and its data merged into this one).
-                </DialogDescription>
-            </DialogHeader>
-            <div className="py-4">
-                <label className="text-sm font-medium mb-2 block">Target Account (Keep)</label>
-                <Select value={mergeTargetId} onValueChange={setMergeTargetId}>
-                    <SelectTrigger>
-                        <SelectValue placeholder="Select account to keep" />
-                    </SelectTrigger>
-                    <SelectContent>
-                        {Array.from(selected).map(id => {
-                            const m = members.find(mem => mem.id === id);
-                            if (!m) return null;
-                            return (
-                                <SelectItem key={m.id} value={m.id}>
-                                    <span className="flex items-center gap-2">
-                                        {m.firstName} {m.lastName} ({m.email})
-                                        {m.slackId && <Badge variant="secondary" className="text-[10px] h-5 px-1.5">Slack</Badge>}
-                                    </span>
-                                </SelectItem>
-                            );
-                        })}
-                    </SelectContent>
-                </Select>
-                <p className="text-xs text-muted-foreground mt-2">
-                    Tip: Usually you want to keep the <strong>Slack</strong> account to ensure login works.
-                </p>
-            </div>
-            <DialogFooter>
-                <Button variant="outline" onClick={() => setMergeDialogOpen(false)}>Cancel</Button>
-                <Button onClick={handleMerge} disabled={saving || !mergeTargetId}>
-                    {saving ? "Merging..." : "Confirm Merge"}
-                </Button>
-            </DialogFooter>
-        </DialogContent>
-      </Dialog>
     </ProtectedRoute>
   );
 }
