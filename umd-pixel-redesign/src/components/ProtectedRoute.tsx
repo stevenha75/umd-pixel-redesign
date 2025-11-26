@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { useAuth } from "@/context/AuthContext";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
+import { LoadingState } from "@/components/LoadingState";
 
 type Props = {
   children: React.ReactNode;
@@ -27,13 +28,7 @@ export function ProtectedRoute({ children, requireAdmin = false }: Props) {
   }, [loading, user, router, requireAdmin, isAdmin]);
 
   if (loading || !user) {
-    return (
-      <div className="min-h-screen flex items-center justify-center bg-background">
-        <Card className="w-full max-w-sm">
-          <CardContent className="p-6 text-sm text-muted-foreground">Loading…</CardContent>
-        </Card>
-      </div>
-    );
+    return <LoadingState fullHeight title="Loading…" subtitle="Signing you in." />;
   }
 
   if (requireAdmin && !isAdmin) {

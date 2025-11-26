@@ -7,6 +7,7 @@ import { Controller, useForm } from "react-hook-form";
 import { z } from "zod";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { Button } from "@/components/ui/button";
+import { LoadingState } from "@/components/LoadingState";
 import {
   Table,
   TableBody,
@@ -596,7 +597,7 @@ export default function AdminPage() {
                 </Button>
               </div>
               {loading ? (
-                <p className="text-sm text-muted-foreground">Loading events…</p>
+                <LoadingState variant="inline" title="Loading events…" />
               ) : (
                 <div className="overflow-x-auto">
                   <Table>
@@ -722,7 +723,7 @@ export default function AdminPage() {
             </CardHeader>
             <CardContent>
               {loading ? (
-                <p className="text-sm text-muted-foreground">Loading requests…</p>
+                <LoadingState variant="inline" title="Loading requests…" />
               ) : (
                 <div className="overflow-x-auto">
                   <Table>

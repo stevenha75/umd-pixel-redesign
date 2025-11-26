@@ -9,6 +9,7 @@ import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useQuery } from "@tanstack/react-query";
+import { LoadingState } from "@/components/LoadingState";
 import {
   ActivityRecord,
   createActivity,
@@ -160,9 +161,11 @@ export default function ActivitiesPage() {
               <div>
                 <CardTitle>Activities list</CardTitle>
                 <CardDescription>
-                  {activitiesQuery.isLoading
-                    ? "Loading…"
-                    : `${activitiesQuery.data?.length || 0} activities`}
+                  {activitiesQuery.isLoading ? (
+                    <LoadingState variant="inline" title="Loading activities…" />
+                  ) : (
+                    `${activitiesQuery.data?.length || 0} activities`
+                  )}
                 </CardDescription>
               </div>
             </CardHeader>

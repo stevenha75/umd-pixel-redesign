@@ -6,6 +6,7 @@ import { httpsCallable } from "firebase/functions";
 import { signInWithCustomToken } from "firebase/auth";
 import { auth, functions } from "@/lib/firebase";
 import Image from "next/image";
+import { LoadingState } from "@/components/LoadingState";
 
 export default function CallbackPage() {
   return (
@@ -13,13 +14,7 @@ export default function CallbackPage() {
       fallback={
         <div className="relative flex min-h-screen items-center justify-center bg-gradient-to-br from-primary/5 via-white to-secondary/20">
         <div className="absolute inset-0 -z-10 bg-[radial-gradient(circle_at_20%_20%,rgba(0,105,202,0.12),transparent_35%),radial-gradient(circle_at_80%_0%,rgba(128,210,200,0.18),transparent_30%)]" />
-          <div className="flex items-center gap-3 rounded-2xl border border-primary/10 bg-white/80 px-6 py-4 text-sm text-muted-foreground shadow-sm backdrop-blur">
-            <span className="h-10 w-10 animate-spin rounded-full border-2 border-primary/20 border-t-primary" aria-label="Loading" />
-            <div>
-              <div className="text-base font-semibold text-foreground">Completing sign-in…</div>
-              <p className="text-sm text-muted-foreground">Connecting to Slack.</p>
-            </div>
-          </div>
+          <LoadingState title="Completing sign-in…" subtitle="Connecting to Slack." />
         </div>
       }
     >

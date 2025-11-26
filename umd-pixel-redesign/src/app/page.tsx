@@ -10,6 +10,7 @@ import { useAuth } from "@/context/AuthContext";
 import { DashboardData, fetchDashboardData } from "@/lib/dashboard";
 import { useQuery } from "@tanstack/react-query";
 import { Button } from "@/components/ui/button";
+import { LoadingState } from "@/components/LoadingState";
 
 export default function Home() {
   const { user } = useAuth();
@@ -27,6 +28,9 @@ export default function Home() {
         <div className="mx-auto flex max-w-6xl flex-col gap-6 px-4 py-10">
           <header className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
             <div className="flex items-center gap-3">
+              <div className="flex h-12 w-12 items-center justify-center rounded-full bg-primary text-primary-foreground shadow-md ring-2 ring-primary/20">
+                <Image src="/images/h4i.png" alt="Hack4Impact UMD" width={28} height={28} className="h-7 w-7" priority />
+              </div>
               <div>
                 <p className="text-xs font-semibold uppercase tracking-[0.12em] text-primary">
                   Hack4Impact UMD
@@ -59,13 +63,10 @@ export default function Home() {
             </div>
           </header>
           {isLoading && (
-            <div className="flex items-center gap-4 rounded-2xl border border-primary/10 bg-white/80 p-6 text-sm text-muted-foreground shadow-sm backdrop-blur">
-              <span className="h-10 w-10 animate-spin rounded-full border-2 border-primary/20 border-t-primary" aria-label="Loading" />
-              <div>
-                <div className="text-base font-semibold text-foreground">Loading your dashboard</div>
-                <p className="text-sm text-muted-foreground">Pulling in events and pixels—hang tight.</p>
-              </div>
-            </div>
+            <LoadingState
+              title="Loading your dashboard"
+              subtitle="Pulling in events and pixels—hang tight."
+            />
           )}
           {error && (
             <div className="flex items-start gap-3 rounded-2xl border border-destructive/30 bg-destructive/10 p-6 text-sm text-destructive shadow-sm">

@@ -12,6 +12,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Line } from "react-chartjs-2";
 import { Chart as ChartJS, LineElement, PointElement, LinearScale, CategoryScale, Tooltip, Legend } from "chart.js";
 import { CsvExportButton } from "@/components/export/CsvExportButton";
+import { LoadingState } from "@/components/LoadingState";
 
 ChartJS.register(LineElement, PointElement, LinearScale, CategoryScale, Tooltip, Legend);
 import { useQuery } from "@tanstack/react-query";
@@ -216,7 +217,11 @@ export default function MembersPage() {
               <div>
                 <CardTitle>Members</CardTitle>
                 <CardDescription>
-                  {membersQuery.isLoading ? "Loading…" : `${members.length} members`}
+                  {membersQuery.isLoading ? (
+                    <LoadingState variant="inline" title="Loading members…" />
+                  ) : (
+                    `${members.length} members`
+                  )}
                 </CardDescription>
               </div>
               <div className="flex flex-col gap-2 md:flex-row md:items-center md:gap-3">
