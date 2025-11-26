@@ -1,12 +1,17 @@
 import {
+  Timestamp,
   collection,
   collectionGroup,
   doc,
+  documentId,
+  getCountFromServer,
   getDoc,
   getDocs,
   limit,
   orderBy,
   query,
+  QueryDocumentSnapshot,
+  startAfter,
   where,
 } from "firebase/firestore";
 import { db } from "./firebase";
@@ -36,10 +41,24 @@ export type DashboardData = {
   pixelTotal: number;
   pixelDelta: number;
   pixelLog: PixelLogRow[];
+  pixelLogCursor: PixelLogCursor | null;
+  pixelLogTotal: number;
   leaderboard: LeaderboardRow[];
   leaderboardEnabled: boolean;
   activities: ActivityRow[];
+  currentSemesterId: string | null;
   rank?: number;
+};
+
+export type PixelLogCursor = {
+  date: number;
+  id: string;
+};
+
+export type PixelLogPage = {
+  rows: PixelLogRow[];
+  nextCursor: PixelLogCursor | null;
+  total?: number;
 };
 
 export type ActivityRow = {
@@ -52,6 +71,134 @@ export type ActivityRow = {
 };
 
 const requiredTypes = ["GBM", "other_mandatory"];
+export const PIXEL_LOG_PAGE_SIZE = 25;
+
+async function fetchExcusedEventIds(userId: string) {
+  const excusedSnapshot = await getDocs(
+    query(
+      collectionGroup(db, "excused_absences"),
+      where("userId", "==", userId),
+      where("status", "==", "approved")
+    )
+  );
+  const excusedEventIds = new Set<string>();
+  excusedSnapshot.forEach((docSnap) => {
+    const eventRef = docSnap.ref.parent.parent;
+    if (eventRef) excusedEventIds.add(eventRef.id);
+  });
+  return excusedEventIds;
+}
+
+function mapEventToPixelRow(
+  eventId: string,
+  event: EventDocument,
+  userId: string,
+  excusedEventIds: Set<string>
+): PixelLogRow {
+  const attendees: string[] = event.attendees || [];
+  const pixels: number = event.pixels || 0;
+  const eventDate = toDate(event.date);
+
+  let attendance: PixelLogRow["attendance"] = "No Show";
+
+  if (attendees.includes(userId)) {
+    attendance = "Attended";
+  }
+  if (excusedEventIds.has(eventId)) {
+    attendance = "Excused";
+  }
+  if (requiredTypes.includes(event.type) && attendance === "No Show") {
+    attendance = "Unexcused";
+  }
+
+  const pixelsEarned = attendance === "Attended" && pixels > 0 ? pixels : 0;
+
+  return {
+    id: `${eventId}-${userId}`,
+    eventId,
+    date: eventDate.toLocaleDateString(),
+    name: event.name || "Event",
+    type: event.type || "event",
+    attendance,
+    pixelsAllocated: pixels,
+    pixelsEarned,
+  };
+}
+
+function buildEventQuery(semesterId?: string | null, cursor?: PixelLogCursor | null) {
+  const base = semesterId
+    ? query(collection(db, "events"), where("semesterId", "==", semesterId))
+    : collection(db, "events");
+
+  const constraints = cursor
+    ? [
+        orderBy("date", "desc"),
+        orderBy(documentId(), "desc"),
+        startAfter(Timestamp.fromMillis(cursor.date), cursor.id),
+        limit(PIXEL_LOG_PAGE_SIZE),
+      ]
+    : [orderBy("date", "desc"), orderBy(documentId(), "desc"), limit(PIXEL_LOG_PAGE_SIZE)];
+
+  return query(base, ...constraints);
+}
+
+function makeCursor(snapshot: QueryDocumentSnapshot) {
+  const data = snapshot.data();
+  const dateVal = data?.date;
+  const millis = dateVal && typeof (dateVal as Timestamp).toMillis === "function"
+    ? (dateVal as Timestamp).toMillis()
+    : toDate(dateVal).getTime();
+  if (!millis) return null;
+  return { date: millis, id: snapshot.id } satisfies PixelLogCursor;
+}
+
+async function fetchPixelLogPageInternal(
+  {
+    userId,
+    semesterId,
+    cursor,
+    includeTotal,
+  }: { userId: string; semesterId?: string | null; cursor?: PixelLogCursor | null; includeTotal?: boolean },
+  excusedEventIds: Set<string>
+): Promise<PixelLogPage> {
+  const eventsSnap = await getDocs(buildEventQuery(semesterId, cursor));
+
+  const rows = eventsSnap.docs.map((docSnap) =>
+    mapEventToPixelRow(docSnap.id, docSnap.data() as EventDocument, userId, excusedEventIds)
+  );
+
+  const nextCursor =
+    eventsSnap.docs.length === PIXEL_LOG_PAGE_SIZE
+      ? makeCursor(eventsSnap.docs[eventsSnap.docs.length - 1])
+      : null;
+
+  let total: number | undefined;
+  if (includeTotal) {
+    const countSnap = await getCountFromServer(
+      semesterId
+        ? query(collection(db, "events"), where("semesterId", "==", semesterId))
+        : collection(db, "events")
+    );
+    total = Number(countSnap.data().count || 0);
+  }
+
+  return { rows, nextCursor, total };
+}
+
+export async function fetchPixelLogPage({
+  userId,
+  semesterId,
+  cursor,
+  includeTotal = false,
+}: {
+  userId: string;
+  semesterId?: string | null;
+  cursor?: PixelLogCursor | null;
+  includeTotal?: boolean;
+}): Promise<PixelLogPage> {
+  const excusedEventIds = await fetchExcusedEventIds(userId);
+  return fetchPixelLogPageInternal({ userId, semesterId, cursor, includeTotal }, excusedEventIds);
+}
 
 export async function fetchDashboardData(userId: string): Promise<DashboardData> {
   const userSnap = await getDoc(doc(db, "users", userId));
@@ -65,63 +212,13 @@ export async function fetchDashboardData(userId: string): Promise<DashboardData>
   const currentSemesterId = settingsSnap.data()?.currentSemesterId;
   const leaderboardEnabled = !!settingsSnap.data()?.isLeadershipOn;
 
-  const excusedSnapshot = await getDocs(
-    query(
-      collectionGroup(db, "excused_absences"),
-      where("userId", "==", userId),
-      where("status", "==", "approved")
-    )
+  const excusedEventIds = await fetchExcusedEventIds(userId);
+  const pixelLogPage = await fetchPixelLogPageInternal(
+    { userId, semesterId: currentSemesterId, includeTotal: true },
+    excusedEventIds
   );
-  const excusedEventIds = new Set<string>();
-  excusedSnapshot.forEach((doc) => {
-    const eventRef = doc.ref.parent.parent;
-    if (eventRef) excusedEventIds.add(eventRef.id);
-  });
 
-  const eventQuery = currentSemesterId
-    ? query(
-        collection(db, "events"),
-        where("semesterId", "==", currentSemesterId),
-        orderBy("date", "desc")
-      )
-    : query(collection(db, "events"), orderBy("date", "desc"));
-
-  const eventsSnap = await getDocs(eventQuery);
-  const pixelLog: PixelLogRow[] = [];
-  let earnedPixels = 0;
-
-  eventsSnap.forEach((eventDoc) => {
-    const event = eventDoc.data() as EventDocument;
-    const attendees: string[] = event.attendees || [];
-    const pixels: number = event.pixels || 0;
-    const eventDate = toDate(event.date);
-
-    let attendance: PixelLogRow["attendance"] = "No Show";
-
-    if (attendees.includes(userId)) {
-      attendance = "Attended";
-    }
-    if (excusedEventIds.has(eventDoc.id)) {
-      attendance = "Excused";
-    }
-    if (requiredTypes.includes(event.type) && attendance === "No Show") {
-      attendance = "Unexcused";
-    }
-
-    const pixelsEarned = attendance === "Attended" && pixels > 0 ? pixels : 0;
-    if (pixelsEarned > 0) earnedPixels += pixelsEarned;
-
-    pixelLog.push({
-      id: `${eventDoc.id}-${userId}`,
-      eventId: eventDoc.id,
-      date: eventDate.toLocaleDateString(),
-      name: event.name || "Event",
-      type: event.type || "event",
-      attendance,
-      pixelsAllocated: pixels,
-      pixelsEarned,
-    });
-  });
+  const earnedPixelPageTotal = pixelLogPage.rows.reduce((sum, row) => sum + row.pixelsEarned, 0);
 
   const activities: ActivityRow[] = [];
   const activitiesQuery = currentSemesterId
@@ -142,10 +239,10 @@ export async function fetchDashboardData(userId: string): Promise<DashboardData>
         multiplier,
         total,
       });
-      earnedPixels += total;
     }
   });
 
+  const earnedPixels = earnedPixelPageTotal + activities.reduce((sum, act) => sum + act.total, 0);
   const pixelTotal = userData.pixelCached ?? userData.pixels ?? earnedPixels + pixelDelta;
 
   let leaderboard: LeaderboardRow[] = [];
@@ -173,10 +270,13 @@ export async function fetchDashboardData(userId: string): Promise<DashboardData>
     email: userData.email || userData.slackEmail || "",
     pixelTotal,
     pixelDelta,
-    pixelLog,
+    pixelLog: pixelLogPage.rows,
+    pixelLogCursor: pixelLogPage.nextCursor,
+    pixelLogTotal: pixelLogPage.total ?? pixelLogPage.rows.length,
     leaderboard,
     leaderboardEnabled,
     activities,
+    currentSemesterId: currentSemesterId ?? null,
     rank,
   };
 }

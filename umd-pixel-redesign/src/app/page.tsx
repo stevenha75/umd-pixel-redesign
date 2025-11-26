@@ -1,4 +1,7 @@
 "use client";
+import { useEffect, useState } from "react";
+import Image from "next/image";
+import { useQuery } from "@tanstack/react-query";
 import Navbar from "@/components/Navbar";
 import { ProtectedRoute } from "@/components/ProtectedRoute";
 import { Leaderboard } from "@/components/dashboard/Leaderboard";
@@ -7,11 +10,9 @@ import { PixelSummary } from "@/components/dashboard/PixelSummary";
 import { AdjustmentNotice } from "@/components/dashboard/AdjustmentNotice";
 import { ActivitiesTable } from "@/components/dashboard/ActivitiesTable";
 import { useAuth } from "@/context/AuthContext";
-import { DashboardData, fetchDashboardData } from "@/lib/dashboard";
-import { useQuery } from "@tanstack/react-query";
+import { DashboardData, PixelLogCursor, PixelLogRow, fetchDashboardData, fetchPixelLogPage } from "@/lib/dashboard";
 import { Button } from "@/components/ui/button";
 import { LoadingState } from "@/components/LoadingState";
-import Image from "next/image";
 
 export default function Home() {
   const { user } = useAuth();
@@ -21,6 +22,42 @@ export default function Home() {
     enabled: !!user,
     staleTime: 60_000,
   });
+
+  const [pixelRows, setPixelRows] = useState<PixelLogRow[]>([]);
+  const [pixelCursor, setPixelCursor] = useState<PixelLogCursor | null>(null);
+  const [pixelTotal, setPixelTotal] = useState<number | undefined>(undefined);
+  const [loadingMorePixels, setLoadingMorePixels] = useState(false);
+
+  const hasMorePixelRows = pixelCursor !== null && (pixelTotal === undefined || pixelRows.length < pixelTotal);
+
+  useEffect(() => {
+    if (!data) {
+      setPixelRows([]);
+      setPixelCursor(null);
+      setPixelTotal(undefined);
+      return;
+    }
+    setPixelRows(data.pixelLog);
+    setPixelCursor(data.pixelLogCursor);
+    setPixelTotal(data.pixelLogTotal);
+  }, [data]);
+
+  const loadMorePixelRows = async () => {
+    if (!user || !hasMorePixelRows || loadingMorePixels) return;
+    setLoadingMorePixels(true);
+    try {
+      const nextPage = await fetchPixelLogPage({
+        userId: user.uid,
+        semesterId: data?.currentSemesterId,
+        cursor: pixelCursor,
+      });
+      setPixelRows((prev) => [...prev, ...nextPage.rows]);
+      setPixelCursor(nextPage.nextCursor);
+      setPixelTotal((prev) => prev ?? nextPage.total ?? undefined);
+    } finally {
+      setLoadingMorePixels(false);
+    }
+  };
 
   return (
     <ProtectedRoute>
@@ -88,7 +125,13 @@ export default function Home() {
                 rank={data.rank}
               />
               <AdjustmentNotice pixelDelta={data.pixelDelta} />
-              <PixelLogTable rows={data.pixelLog} />
+              <PixelLogTable
+                rows={pixelRows}
+                totalCount={pixelTotal}
+                hasMore={hasMorePixelRows}
+                onLoadMore={loadMorePixelRows}
+                loadingMore={loadingMorePixels}
+              />
               <ActivitiesTable rows={data.activities} />
               <Leaderboard rows={data.leaderboard} enabled={data.leaderboardEnabled} />
             </>

@@ -12,11 +12,15 @@ import { Button } from "@/components/ui/button";
 
 type Props = {
   rows: PixelLogRow[];
+  totalCount?: number;
+  hasMore?: boolean;
+  onLoadMore?: () => void | Promise<void>;
+  loadingMore?: boolean;
 };
 
 const PAGE_SIZE = 10;
 
-export function PixelLogTable({ rows }: Props) {
+export function PixelLogTable({ rows, totalCount, hasMore, onLoadMore, loadingMore }: Props) {
   const [page, setPage] = useState(0);
   const [sortKey, setSortKey] = useState<"date" | "name" | "pixels">("date");
   const [sortDir, setSortDir] = useState<"asc" | "desc">("desc");
@@ -33,13 +37,14 @@ export function PixelLogTable({ rows }: Props) {
   }, [rows, sortDir, sortKey]);
 
   const totalPages = Math.max(1, Math.ceil(sortedRows.length / PAGE_SIZE));
+  const currentPage = Math.min(page, totalPages - 1);
   const pageRows = useMemo(() => {
-    const start = page * PAGE_SIZE;
+    const start = currentPage * PAGE_SIZE;
     return sortedRows.slice(start, start + PAGE_SIZE);
-  }, [page, sortedRows]);
+  }, [currentPage, sortedRows]);
 
-  const canPrev = page > 0;
-  const canNext = page < totalPages - 1;
+  const canPrev = currentPage > 0;
+  const canNext = currentPage < totalPages - 1;
 
   const toggleSort = (key: "date" | "name" | "pixels") => {
     if (sortKey === key) {
@@ -50,6 +55,9 @@ export function PixelLogTable({ rows }: Props) {
     }
     setPage(0);
   };
+
+  const displayed = totalCount ?? sortedRows.length;
+  const showLoadMore = hasMore && onLoadMore;
 
   return (
     <section className="rounded-2xl border border-primary/10 bg-white/90 p-6 shadow-sm backdrop-blur">
@@ -62,15 +70,22 @@ export function PixelLogTable({ rows }: Props) {
           </div>
           <div>
             <h2 className="text-lg font-semibold text-foreground">Pixel log</h2>
-            <p className="text-sm text-muted-foreground">{rows.length} events tracked</p>
+            <p className="text-sm text-muted-foreground">
+              Showing {Math.min(sortedRows.length, displayed)} of {displayed} events
+            </p>
           </div>
         </div>
         <div className="flex items-center gap-2 text-sm">
+          {showLoadMore && (
+            <Button variant="outline" size="sm" onClick={onLoadMore} disabled={loadingMore}>
+              {loadingMore ? "Loading…" : "Load older events"}
+            </Button>
+          )}
           <Button variant="outline" size="sm" onClick={() => setPage((p) => Math.max(0, p - 1))} disabled={!canPrev}>
             Prev
           </Button>
           <span className="rounded-full bg-muted px-3 py-1 text-xs font-semibold text-muted-foreground">
-            Page {page + 1} of {totalPages}
+            Page {currentPage + 1} of {totalPages}
           </span>
           <Button variant="outline" size="sm" onClick={() => setPage((p) => Math.min(totalPages - 1, p + 1))} disabled={!canNext}>
             Next
