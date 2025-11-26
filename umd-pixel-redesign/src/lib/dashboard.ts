@@ -13,6 +13,7 @@ import {
   QueryDocumentSnapshot,
   startAfter,
   where,
+  FirestoreError,
 } from "firebase/firestore";
 import { db } from "./firebase";
 import { toDate } from "./dates";
@@ -161,28 +162,65 @@ async function fetchPixelLogPageInternal(
   }: { userId: string; semesterId?: string | null; cursor?: PixelLogCursor | null; includeTotal?: boolean },
   excusedEventIds: Set<string>
 ): Promise<PixelLogPage> {
-  const eventsSnap = await getDocs(buildEventQuery(semesterId, cursor));
+  try {
+    const eventsSnap = await getDocs(buildEventQuery(semesterId, cursor));
 
-  const rows = eventsSnap.docs.map((docSnap) =>
-    mapEventToPixelRow(docSnap.id, docSnap.data() as EventDocument, userId, excusedEventIds)
-  );
-
-  const nextCursor =
-    eventsSnap.docs.length === PIXEL_LOG_PAGE_SIZE
-      ? makeCursor(eventsSnap.docs[eventsSnap.docs.length - 1])
-      : null;
-
-  let total: number | undefined;
-  if (includeTotal) {
-    const countSnap = await getCountFromServer(
-      semesterId
-        ? query(collection(db, "events"), where("semesterId", "==", semesterId))
-        : collection(db, "events")
+    const rows = eventsSnap.docs.map((docSnap) =>
+      mapEventToPixelRow(docSnap.id, docSnap.data() as EventDocument, userId, excusedEventIds)
     );
-    total = Number(countSnap.data().count || 0);
-  }
 
-  return { rows, nextCursor, total };
+    const nextCursor =
+      eventsSnap.docs.length === PIXEL_LOG_PAGE_SIZE
+        ? makeCursor(eventsSnap.docs[eventsSnap.docs.length - 1])
+        : null;
+
+    let total: number | undefined;
+    if (includeTotal) {
+      const countSnap = await getCountFromServer(
+        semesterId
+          ? query(collection(db, "events"), where("semesterId", "==", semesterId))
+          : collection(db, "events")
+      );
+      total = Number(countSnap.data().count || 0);
+    }
+
+    return { rows, nextCursor, total };
+  } catch (err) {
+    const code = (err as FirestoreError)?.code;
+    if (code !== "failed-precondition") {
+      throw err;
+    }
+
+    const baseQuery = semesterId
+      ? query(collection(db, "events"), where("semesterId", "==", semesterId))
+      : collection(db, "events");
+    const snap = await getDocs(baseQuery);
+
+    const sortedDocs = [...snap.docs].sort((a, b) => {
+      const dateA = toDate((a.data() as EventDocument).date).getTime();
+      const dateB = toDate((b.data() as EventDocument).date).getTime();
+      if (dateA !== dateB) return dateB - dateA;
+      return b.id.localeCompare(a.id);
+    });
+
+    const startIndex = cursor
+      ? Math.max(0, sortedDocs.findIndex((d) => d.id === cursor?.id) + 1)
+      : 0;
+
+    const pageDocs = sortedDocs.slice(startIndex, startIndex + PIXEL_LOG_PAGE_SIZE);
+    const nextCursor =
+      startIndex + PIXEL_LOG_PAGE_SIZE < sortedDocs.length && pageDocs.length
+        ? makeCursor(pageDocs[pageDocs.length - 1])
+        : null;
+
+    const rows = pageDocs.map((docSnap) =>
+      mapEventToPixelRow(docSnap.id, docSnap.data() as EventDocument, userId, excusedEventIds)
+    );
+
+    const total = includeTotal ? sortedDocs.length : undefined;
+
+    return { rows, nextCursor, total };
+  }
 }
 
 export async function fetchPixelLogPage({
