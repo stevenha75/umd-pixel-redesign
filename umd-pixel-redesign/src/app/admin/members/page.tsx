@@ -498,30 +498,29 @@ export default function MembersPage() {
                     </div>
                     <div className="flex flex-col gap-3">
                       <div className="text-sm text-muted-foreground">
-                        Pixels: {selectedMember.pixels} (Delta {selectedMember.pixelDelta})
+                        Pixels: {selectedMember.pixels} (Delta {selectedMember.pixelDelta}){" "}
+                        <button
+                          type="button"
+                          className="ml-1 inline-flex h-5 w-5 items-center justify-center rounded-full border border-border text-[10px] text-muted-foreground hover:bg-muted"
+                          title="Adds or subtracts on top of earned pixels for this semester."
+                          aria-label="Pixel adjustment help"
+                        >
+                          ?
+                        </button>
                       </div>
-                      <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:gap-3">
-                        <div className="flex items-center gap-2">
-                          <Input
-                            type="number"
-                            value={pixelDeltaInput}
-                            onChange={(e) => setPixelDeltaInput(e.target.value)}
-                            placeholder="Pixel adjustment"
-                            className="sm:w-44"
-                          />
-                          <button
-                            type="button"
-                            className="flex h-8 w-8 items-center justify-center rounded-full border border-border text-xs text-muted-foreground hover:bg-muted"
-                            title="Adds or subtracts on top of earned pixels for this semester."
-                            aria-label="Pixel adjustment help"
-                          >
-                            ?
-                          </button>
-                        </div>
+                      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:gap-3">
+                        <Input
+                          type="number"
+                          value={pixelDeltaInput}
+                          onChange={(e) => setPixelDeltaInput(e.target.value)}
+                          placeholder="Pixel adjustment"
+                          className="sm:w-44"
+                        />
                         <Button onClick={handleSavePixelDelta} disabled={saving}>
                           {saving ? "Saving…" : "Save"}
                         </Button>
                       </div>
+                    </div>
                     {pixelHistory && (
                       <div className="rounded-lg border border-border p-3">
                         <Line
