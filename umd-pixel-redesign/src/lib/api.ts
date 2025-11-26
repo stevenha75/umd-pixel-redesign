@@ -15,8 +15,7 @@ import {
   updateDoc,
   where,
 } from "firebase/firestore";
-import { httpsCallable } from "firebase/functions";
-import { db, functions } from "./firebase";
+import { db } from "./firebase";
 import { toDate } from "./dates";
 import type {
   EventDocument,
@@ -73,7 +72,6 @@ export type MemberRecord = {
   pixels: number;
   pixelDelta: number;
   rank?: number;
-  slackId?: string;
 };
 
 export type ActivityRecord = {
@@ -291,7 +289,6 @@ export async function fetchMembers(): Promise<MemberRecord[]> {
       pixels: data.pixelCached ?? data.pixels ?? 0,
       pixelDelta: data.pixelDelta ?? data.pixeldelta ?? 0,
       rank: idx + 1,
-      slackId: data.slackId,
     };
   });
 }
@@ -427,9 +424,4 @@ export async function fetchUserDetails(ids: string[]) {
     })
   );
   return details;
-}
-
-export async function mergeMembers(sourceUserId: string, targetUserId: string) {
-  const mergeUsersFn = httpsCallable(functions, "mergeUsers");
-  await mergeUsersFn({ sourceUserId, targetUserId });
 }
