@@ -25,7 +25,7 @@ export function Leaderboard({ rows, enabled }: Props) {
           </div>
           <div>
             <h2 className="text-lg font-semibold text-foreground">Leaderboard</h2>
-            <p className="text-sm text-muted-foreground">See how you stack up with the team.</p>
+            <p className="text-sm text-muted-foreground">See how goated you are.</p>
           </div>
         </div>
         {!enabled && (
