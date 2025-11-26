@@ -13,12 +13,12 @@ import { useQuery } from "@tanstack/react-query";
 import { setAdminFlag } from "@/lib/api";
 import { CardFooter } from "@/components/ui/card";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
+import { toast } from "sonner";
 
 export default function SettingsPage() {
   const [currentSemesterId, setCurrentSemesterId] = useState("");
   const [isLeadershipOn, setIsLeadershipOn] = useState(false);
   const [saving, setSaving] = useState(false);
-  const [message, setMessage] = useState<string | null>(null);
   const [adminId, setAdminId] = useState("");
 
   const settingsQuery = useQuery({
@@ -39,17 +39,16 @@ export default function SettingsPage() {
 
   const handleSave = async () => {
     setSaving(true);
-    setMessage(null);
     try {
       await updateDoc(doc(db, "settings", "global"), {
         currentSemesterId: currentSemesterId.trim(),
         isLeadershipOn,
       });
-      setMessage("Settings saved.");
+      toast.success("Settings saved.");
       settingsQuery.refetch();
     } catch (err) {
       console.error(err);
-      setMessage("Failed to save settings.");
+      toast.error("Failed to save settings.");
     } finally {
       setSaving(false);
     }
@@ -58,14 +57,15 @@ export default function SettingsPage() {
   const handleAddAdmin = async () => {
     if (!adminId.trim()) return;
     setSaving(true);
-    setMessage(null);
     try {
       await setAdminFlag(adminId.trim(), true);
       setAdminId("");
-      setMessage("Admin access granted.");
+      toast.success("Admin access granted.", {
+        description: "The user must log out and log back in to receive permissions.",
+      });
     } catch (err) {
       console.error(err);
-      setMessage("Failed to update admin.");
+      toast.error("Failed to update admin.");
     } finally {
       setSaving(false);
     }
@@ -110,7 +110,6 @@ export default function SettingsPage() {
                 <Button onClick={handleSave} disabled={saving || settingsQuery.isLoading}>
                   {saving ? "Saving…" : "Save settings"}
                 </Button>
-                {message && <span className="text-sm text-muted-foreground">{message}</span>}
               </div>
             </CardContent>
           </Card>
