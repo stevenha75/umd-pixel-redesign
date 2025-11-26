@@ -22,7 +22,7 @@ function assertSlackConfig() {
 
 export const authWithSlack = functions
     .region("us-central1")
-    .https.onCall(async (data, _context) => {
+    .https.onCall(async (data) => {
     const { code, redirectUri } = data;
 
     assertSlackConfig();
@@ -128,24 +128,29 @@ export const authWithSlack = functions
         });
 
         return { token: customToken };
-    } catch (error: any) {
+    } catch (error: unknown) {
         console.error("Auth Error:", error);
-        
+
         if (error instanceof functions.https.HttpsError) {
             throw error;
         }
-        
-        if (error?.response?.data) {
-            console.error("Slack API Error Response:", JSON.stringify(error.response.data));
+
+        const axiosResponse =
+            typeof error === "object" && error !== null && "response" in error
+                ? (error as { response?: { data?: unknown } }).response?.data
+                : undefined;
+        if (axiosResponse) {
+            console.error("Slack API Error Response:", JSON.stringify(axiosResponse));
         }
-        if (error?.message) {
-            console.error("Error Message:", error.message);
-        }
-        
-        throw new functions.https.HttpsError(
-            "internal",
-            error?.message || "Authentication failed."
-        );
+
+        const message =
+            error instanceof Error
+                ? error.message
+                : typeof error === "object" && error !== null && "message" in error
+                    ? String((error as { message?: unknown }).message)
+                    : "Authentication failed.";
+
+        throw new functions.https.HttpsError("internal", message);
     }
 });
 
@@ -157,7 +162,7 @@ export const authWithSlack = functions
 export const onEventUpdate = functions
     .region("us-central1")
     .firestore.document("events/{eventId}")
-    .onWrite(async (change, _context) => {
+    .onWrite(async (change) => {
         const beforeData = change.before.exists ? change.before.data() : null;
         const afterData = change.after.exists ? change.after.data() : null;
 
@@ -190,7 +195,7 @@ export const onEventUpdate = functions
 export const onExcusedAbsenceUpdate = functions
     .region("us-central1")
     .firestore.document("events/{eventId}/excused_absences/{absenceId}")
-    .onWrite(async (change, _context) => {
+    .onWrite(async (change) => {
         const afterData = change.after.exists ? change.after.data() : null;
         const beforeData = change.before.exists ? change.before.data() : null;
 
@@ -285,7 +290,7 @@ async function recalculateUserPixels(userId: string) {
 export const onActivityUpdate = functions
     .region("us-central1")
     .firestore.document("activities/{activityId}")
-    .onWrite(async (change, _context) => {
+    .onWrite(async (change) => {
         const before = change.before.exists ? change.before.data() : null;
         const after = change.after.exists ? change.after.data() : null;
         const userIds = new Set<string>();
