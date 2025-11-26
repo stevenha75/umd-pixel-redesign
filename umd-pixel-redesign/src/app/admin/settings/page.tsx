@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { ProtectedRoute } from "@/components/ProtectedRoute";
 import { AdminLayout } from "@/components/admin/AdminLayout";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -11,7 +11,7 @@ import { doc, getDoc, setDoc } from "firebase/firestore";
 import { httpsCallable } from "firebase/functions";
 import { db, functions } from "@/lib/firebase";
 import { useQuery } from "@tanstack/react-query";
-import { setAdminFlag } from "@/lib/api";
+import { fetchMembers, setAdminByEmail } from "@/lib/api";
 import { CardFooter } from "@/components/ui/card";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { toast } from "sonner";
@@ -20,7 +20,7 @@ export default function SettingsPage() {
   const [currentSemesterId, setCurrentSemesterId] = useState("");
   const [isLeadershipOn, setIsLeadershipOn] = useState(false);
   const [saving, setSaving] = useState(false);
-  const [adminId, setAdminId] = useState("");
+  const [adminEmail, setAdminEmail] = useState("");
 
   const settingsQuery = useQuery({
     queryKey: ["admin-settings"],
@@ -30,6 +30,19 @@ export default function SettingsPage() {
     },
     staleTime: 60_000,
   });
+
+  const membersQuery = useQuery({
+    queryKey: ["members"],
+    queryFn: fetchMembers,
+    staleTime: 60_000,
+  });
+
+  const memberEmails = useMemo(() => {
+    const emails = membersQuery.data
+      ?.map((m) => m.email?.toLowerCase())
+      .filter(Boolean) as string[] || [];
+    return Array.from(new Set(emails)).sort();
+  }, [membersQuery.data]);
 
   useEffect(() => {
     if (settingsQuery.data) {
@@ -56,17 +69,20 @@ export default function SettingsPage() {
   };
 
   const handleAddAdmin = async () => {
-    if (!adminId.trim()) return;
+    if (!adminEmail.trim()) return;
     setSaving(true);
     try {
-      await setAdminFlag(adminId.trim(), true);
-      setAdminId("");
+      const updated = await setAdminByEmail(adminEmail, true);
+      setAdminEmail("");
       toast.success("Admin access granted.", {
-        description: "The user must log out and log back in to receive permissions.",
+        description:
+          updated > 1
+            ? `${updated} accounts matched this email. The user must log out and log back in to receive permissions.`
+            : "The user must log out and log back in to receive permissions.",
       });
     } catch (err) {
       console.error(err);
-      toast.error("Failed to update admin.");
+      toast.error(err instanceof Error ? err.message : "Failed to update admin.");
     } finally {
       setSaving(false);
     }
@@ -136,14 +152,21 @@ export default function SettingsPage() {
           <Card>
             <CardHeader>
               <CardTitle>Admin access</CardTitle>
-              <CardDescription>Grant admin to a user ID.</CardDescription>
+              <CardDescription>Grant admin to a user email.</CardDescription>
             </CardHeader>
             <CardContent className="space-y-3">
               <Input
-                value={adminId}
-                onChange={(e) => setAdminId(e.target.value)}
-                placeholder="User ID"
+                value={adminEmail}
+                onChange={(e) => setAdminEmail(e.target.value)}
+                placeholder="User email"
+                type="email"
+                list="member-emails"
               />
+              <datalist id="member-emails">
+                {memberEmails.map((email) => (
+                  <option key={email} value={email} />
+                ))}
+              </datalist>
               <Button onClick={handleAddAdmin} disabled={saving}>
                 Grant admin
               </Button>

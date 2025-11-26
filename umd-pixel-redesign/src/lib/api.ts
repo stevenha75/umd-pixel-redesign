@@ -325,8 +325,24 @@ export async function deleteMember(userId: string) {
   await deleteDoc(doc(db, "users", userId));
 }
 
-export async function setAdminFlag(userId: string, isAdmin: boolean) {
-  await updateDoc(doc(db, "users", userId), { isAdmin });
+export async function setAdminByEmail(email: string, isAdmin: boolean) {
+  const normalized = email.trim().toLowerCase();
+  const matches = new Set<string>();
+
+  const direct = await getDocs(query(collection(db, "users"), where("email", "==", normalized)));
+  direct.forEach((d) => matches.add(d.id));
+
+  const slack = await getDocs(
+    query(collection(db, "users"), where("slackEmail", "==", normalized))
+  );
+  slack.forEach((d) => matches.add(d.id));
+
+  if (!matches.size) {
+    throw new Error("No user found with that email.");
+  }
+
+  await Promise.all(Array.from(matches).map((id) => updateDoc(doc(db, "users", id), { isAdmin })));
+  return matches.size;
 }
 
 export async function addAttendeesByEmail(eventId: string, emails: string[]) {
@@ -480,4 +496,3 @@ export async function addSlackMember(user: SlackUser) {
     createdAt: Timestamp.now(),
   });
 }
-
