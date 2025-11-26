@@ -501,18 +501,27 @@ export default function MembersPage() {
                         Pixels: {selectedMember.pixels} (Delta {selectedMember.pixelDelta})
                       </div>
                       <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:gap-3">
-                        <Input
-                          type="number"
-                          value={pixelDeltaInput}
-                          onChange={(e) => setPixelDeltaInput(e.target.value)}
-                          placeholder="Pixel adjustment"
-                          className="sm:w-44"
-                        />
+                        <div className="flex items-center gap-2">
+                          <Input
+                            type="number"
+                            value={pixelDeltaInput}
+                            onChange={(e) => setPixelDeltaInput(e.target.value)}
+                            placeholder="Pixel adjustment"
+                            className="sm:w-44"
+                          />
+                          <button
+                            type="button"
+                            className="flex h-8 w-8 items-center justify-center rounded-full border border-border text-xs text-muted-foreground hover:bg-muted"
+                            title="Adds or subtracts on top of earned pixels for this semester."
+                            aria-label="Pixel adjustment help"
+                          >
+                            ?
+                          </button>
+                        </div>
                         <Button onClick={handleSavePixelDelta} disabled={saving}>
                           {saving ? "Saving…" : "Save"}
                         </Button>
                       </div>
-                    </div>
                     {pixelHistory && (
                       <div className="rounded-lg border border-border p-3">
                         <Line
