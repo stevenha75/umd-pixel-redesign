@@ -98,28 +98,65 @@ export const authWithSlack = functions
         let isAdmin = false;
         let pixelDelta = 0;
 
-        if (!userDoc.exists) {
-            await userRef.set({
-                firstName,
-                lastName,
-                email,
-                slackId: slackUserId,
-                isAdmin: false,
-                pixels: 0,
-                pixelCached: 0,
-                pixelDelta: 0,
-                createdAt: admin.firestore.FieldValue.serverTimestamp(),
-            });
-        } else {
+        if (userDoc.exists) {
+            // Case 1: User exists with Slack ID as doc ID (Normal login)
             const userData = userDoc.data();
             isAdmin = userData?.isAdmin || false;
             pixelDelta = userData?.pixelDelta ?? userData?.pixeldelta ?? 0;
+            
             await userRef.update({
                 firstName,
                 lastName,
                 email,
                 lastLogin: admin.firestore.FieldValue.serverTimestamp(),
             });
+        } else {
+            // Case 2: Check if user exists by email (Manual creation migration)
+            const existingUserQuery = await admin.firestore().collection("users")
+                .where("email", "==", email)
+                .limit(1)
+                .get();
+
+            if (!existingUserQuery.empty) {
+                const oldUserDoc = existingUserQuery.docs[0];
+                const oldUserData = oldUserDoc.data();
+                
+                isAdmin = oldUserData.isAdmin || false;
+                pixelDelta = oldUserData.pixelDelta ?? oldUserData.pixeldelta ?? 0;
+                const oldPixels = oldUserData.pixels ?? 0;
+                const oldPixelCached = oldUserData.pixelCached ?? 0;
+                
+                // Migrate old data to new doc with Slack ID
+                await userRef.set({
+                    ...oldUserData,
+                    firstName, // Update with latest from Slack
+                    lastName,
+                    email,
+                    slackId: slackUserId,
+                    lastLogin: admin.firestore.FieldValue.serverTimestamp(),
+                    // Ensure critical fields are preserved
+                    isAdmin,
+                    pixelDelta,
+                    pixels: oldPixels,
+                    pixelCached: oldPixelCached,
+                });
+
+                // Delete the old manually created document
+                await oldUserDoc.ref.delete();
+            } else {
+                // Case 3: New user
+                await userRef.set({
+                    firstName,
+                    lastName,
+                    email,
+                    slackId: slackUserId,
+                    isAdmin: false,
+                    pixels: 0,
+                    pixelCached: 0,
+                    pixelDelta: 0,
+                    createdAt: admin.firestore.FieldValue.serverTimestamp(),
+                });
+            }
         }
 
         const customToken = await admin.auth().createCustomToken(slackUserId, {

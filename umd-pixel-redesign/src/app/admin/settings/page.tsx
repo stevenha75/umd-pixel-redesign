@@ -153,7 +153,7 @@ export default function SettingsPage() {
           <Card>
             <CardHeader>
               <CardTitle>Archive & reset</CardTitle>
-              <CardDescription>Manual safeguards; no destructive defaults.</CardDescription>
+              <CardDescription>Manual safeguards</CardDescription>
             </CardHeader>
             <CardFooter className="flex flex-col gap-2 md:flex-row md:items-center md:gap-3">
               <Dialog>
