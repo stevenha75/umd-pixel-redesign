@@ -26,6 +26,7 @@ export interface UserDocument {
   isAdmin?: boolean;
   pixelDelta?: number; // Canonical field
   pixeldelta?: number; // Legacy casing
+  pixelDeltaBySemester?: Record<string, number>;
   pixels?: number; // Legacy field name
   pixelCached?: number; // Cached total
   createdAt?: Timestamp;

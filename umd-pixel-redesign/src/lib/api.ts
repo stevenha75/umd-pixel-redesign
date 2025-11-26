@@ -108,6 +108,7 @@ export async function fetchAdminData(): Promise<AdminData> {
   const eventNameMap = new Map<string, string>();
 
   const attendeeIds = new Set<string>();
+  const eventIds = new Set<string>();
 
   eventsSnap.forEach((d) => {
     const data = d.data() as EventDocument;
@@ -125,6 +126,7 @@ export async function fetchAdminData(): Promise<AdminData> {
       attendees: [],
     });
     eventNameMap.set(d.id, name);
+    eventIds.add(d.id);
   });
 
   const excusedSnap = await getDocs(
@@ -136,6 +138,7 @@ export async function fetchAdminData(): Promise<AdminData> {
   excusedSnap.forEach((d) => {
     const data = d.data() as ExcusedAbsenceDocument;
     const eventId = d.ref.parent.parent?.id || "";
+    if (currentSemesterId && !eventIds.has(eventId)) return;
     excused.push({
       id: d.id,
       eventId,
@@ -293,16 +296,25 @@ export async function setAttendanceStatus(
 }
 
 export async function fetchMembers(): Promise<MemberRecord[]> {
+  const settingsSnap = await getDoc(doc(db, "settings", "global"));
+  const currentSemesterId = settingsSnap.data()?.currentSemesterId || null;
+
   const snap = await getDocs(query(collection(db, "users"), orderBy("pixelCached", "desc")));
   return snap.docs.map((d, idx) => {
     const data = d.data() as UserDocument;
+    const pixelDeltaBySemester = (data.pixelDeltaBySemester || {}) as Record<string, number>;
+    const pixelDeltaLegacy = data.pixelDelta ?? data.pixeldelta ?? 0;
+    const pixelDelta =
+      currentSemesterId && pixelDeltaBySemester[currentSemesterId] !== undefined
+        ? pixelDeltaBySemester[currentSemesterId]
+        : pixelDeltaLegacy;
     return {
       id: d.id,
       firstName: data.firstName || "",
       lastName: data.lastName || "",
       email: data.email || data.slackEmail || "",
       pixels: data.pixelCached ?? data.pixels ?? 0,
-      pixelDelta: data.pixelDelta ?? data.pixeldelta ?? 0,
+      pixelDelta,
       rank: idx + 1,
       slackId: data.slackId,
     };

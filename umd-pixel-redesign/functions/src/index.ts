@@ -186,15 +186,24 @@ export const authWithSlack = functions
 
         const userRef = admin.firestore().collection("users").doc(slackUserId);
         const userDoc = await userRef.get();
+        const settingsDoc = await admin.firestore().collection("settings").doc("global").get();
+        const currentSemesterId = settingsDoc.data()?.currentSemesterId || null;
 
         let isAdmin = false;
         let pixelDelta = 0;
+        const extractPixelDelta = (data: admin.firestore.DocumentData | undefined | null) => {
+            const bySemester = (data?.pixelDeltaBySemester || {}) as Record<string, number>;
+            const legacy = data?.pixelDelta ?? data?.pixeldelta ?? 0;
+            return currentSemesterId && bySemester[currentSemesterId] !== undefined
+                ? bySemester[currentSemesterId]
+                : legacy;
+        };
 
         if (userDoc.exists) {
             // Case 1: User exists with Slack ID as doc ID (Normal login)
             const userData = userDoc.data();
             isAdmin = userData?.isAdmin || false;
-            pixelDelta = userData?.pixelDelta ?? userData?.pixeldelta ?? 0;
+            pixelDelta = extractPixelDelta(userData);
             
             await userRef.update({
                 firstName,
@@ -209,17 +218,17 @@ export const authWithSlack = functions
                 .limit(1)
                 .get();
 
-            if (!existingUserQuery.empty) {
-                const oldUserDoc = existingUserQuery.docs[0];
-                const oldUserData = oldUserDoc.data();
-                
-                isAdmin = oldUserData.isAdmin || false;
-                pixelDelta = oldUserData.pixelDelta ?? oldUserData.pixeldelta ?? 0;
-                const oldPixels = oldUserData.pixels ?? 0;
-                const oldPixelCached = oldUserData.pixelCached ?? 0;
-                
-                // Migrate old data to new doc with Slack ID
-                await userRef.set({
+                if (!existingUserQuery.empty) {
+                    const oldUserDoc = existingUserQuery.docs[0];
+                    const oldUserData = oldUserDoc.data();
+                    
+                    isAdmin = oldUserData.isAdmin || false;
+                    pixelDelta = extractPixelDelta(oldUserData);
+                    const oldPixels = oldUserData.pixels ?? 0;
+                    const oldPixelCached = oldUserData.pixelCached ?? 0;
+                    
+                    // Migrate old data to new doc with Slack ID
+                    await userRef.set({
                     ...oldUserData,
                     firstName, // Update with latest from Slack
                     lastName,
@@ -347,9 +356,6 @@ async function recalculateUserPixels(userId: string) {
 
     const userDoc = await db.collection("users").doc(userId).get();
     if (!userDoc.exists) return;
-    const pixelDelta = userDoc.data()?.pixelDelta ?? userDoc.data()?.pixeldelta ?? 0;
-
-    let totalPixels = pixelDelta;
 
     const settingsDoc = await db.collection("settings").doc("global").get();
     const currentSemesterId = settingsDoc.data()?.currentSemesterId;
@@ -358,6 +364,13 @@ async function recalculateUserPixels(userId: string) {
         console.log("No current semester set.");
         return;
     }
+
+    const userData = userDoc.data() || {};
+    const pixelDeltaBySemester = (userData.pixelDeltaBySemester || {}) as Record<string, number>;
+    const pixelDeltaLegacy = userData.pixelDelta ?? userData.pixeldelta ?? 0;
+    const pixelDelta = pixelDeltaBySemester[currentSemesterId] ?? pixelDeltaLegacy;
+
+    let totalPixels = pixelDelta;
 
     // Get all approved excused absences for this user
     const excusedSnapshot = await db.collectionGroup("excused_absences")

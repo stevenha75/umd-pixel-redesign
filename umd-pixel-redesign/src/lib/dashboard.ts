@@ -206,11 +206,17 @@ export async function fetchDashboardData(userId: string): Promise<DashboardData>
     throw new Error("User document not found");
   }
   const userData = userSnap.data() || {};
-  const pixelDelta = userData.pixelDelta ?? userData.pixeldelta ?? 0;
 
   const settingsSnap = await getDoc(doc(db, "settings", "global"));
   const currentSemesterId = settingsSnap.data()?.currentSemesterId;
   const leaderboardEnabled = !!settingsSnap.data()?.isLeadershipOn;
+
+  const pixelDeltaBySemester = (userData.pixelDeltaBySemester || {}) as Record<string, number>;
+  const pixelDeltaLegacy = userData.pixelDelta ?? userData.pixeldelta ?? 0;
+  const pixelDelta =
+    currentSemesterId && pixelDeltaBySemester[currentSemesterId] !== undefined
+      ? pixelDeltaBySemester[currentSemesterId]
+      : pixelDeltaLegacy;
 
   const excusedEventIds = await fetchExcusedEventIds(userId);
   const pixelLogPage = await fetchPixelLogPageInternal(
