@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import Image from "next/image";
 import { useState } from "react";
 import { useAuth } from "@/context/AuthContext";
 import { Button } from "@/components/ui/button";
@@ -24,11 +25,16 @@ export default function Navbar() {
       .join("") || "U";
 
   return (
-    <nav className="sticky top-0 z-20 border-b border-border bg-background/80 backdrop-blur">
+    <nav className="sticky top-0 z-30 border-b border-primary/10 bg-white/80 backdrop-blur supports-[backdrop-filter]:bg-white/70">
       <div className="mx-auto flex max-w-6xl items-center justify-between px-4 py-3">
         <div className="flex items-center gap-3">
-          <img src="/images/h4i.png" alt="Hack4Impact" width={32} height={32} className="h-8 w-8" />
-          <div className="text-sm font-semibold leading-tight text-foreground">UMD Pixels</div>
+          <div className="flex h-10 w-10 items-center justify-center rounded-full bg-primary/10 ring-1 ring-primary/20">
+            <Image src="/images/h4i.png" alt="Hack4Impact" width={28} height={28} className="h-7 w-7" priority />
+          </div>
+          <div className="flex flex-col leading-tight">
+            <span className="text-xs font-semibold uppercase tracking-wide text-primary">Hack4Impact UMD</span>
+            <span className="text-sm font-semibold text-foreground">Pixels</span>
+          </div>
         </div>
         <div className="hidden items-center gap-3 text-sm sm:flex">
           {isAdmin && (
@@ -40,7 +46,7 @@ export default function Navbar() {
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
                 <Button variant="ghost" className="flex items-center gap-2 px-2">
-                  <Avatar className="h-8 w-8">
+                  <Avatar className="h-9 w-9 ring-1 ring-primary/20">
                     <AvatarImage src={user.photoURL || ""} alt={user.displayName || ""} />
                     <AvatarFallback>{initials}</AvatarFallback>
                   </Avatar>
@@ -60,15 +66,18 @@ export default function Navbar() {
           )}
         </div>
         <button
-          className="inline-flex items-center justify-center rounded-md border border-border px-3 py-2 text-sm font-medium text-foreground hover:bg-muted sm:hidden"
+          className="inline-flex items-center justify-center rounded-full border border-primary/20 bg-white px-3 py-2 text-sm font-semibold text-foreground shadow-xs hover:bg-primary/10 sm:hidden"
           onClick={() => setOpen((v) => !v)}
           aria-label="Toggle menu"
+          aria-expanded={open}
         >
-          ☰
+          <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6">
+            <path d="M4 7h16M4 12h16M4 17h16" strokeLinecap="round" />
+          </svg>
         </button>
       </div>
       {open && (
-        <div className="border-t border-border bg-background px-4 py-3 text-sm sm:hidden">
+        <div className="border-t border-primary/10 bg-white px-4 py-3 text-sm shadow-sm sm:hidden">
           <div className="flex flex-col gap-2">
             {isAdmin && (
               <Button

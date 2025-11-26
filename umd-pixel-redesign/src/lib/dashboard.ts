@@ -52,8 +52,19 @@ export type ActivityRow = {
 
 const requiredTypes = ["GBM", "other_mandatory"];
 
-function toDate(val: any) {
-  if (val?.toDate) return val.toDate();
+type FirestoreDate = {
+  toDate?: () => Date;
+};
+
+function toDate(val: unknown) {
+  if (
+    typeof val === "object" &&
+    val !== null &&
+    "toDate" in val &&
+    typeof (val as FirestoreDate).toDate === "function"
+  ) {
+    return (val as FirestoreDate).toDate?.() ?? new Date();
+  }
   if (val instanceof Date) return val;
   if (typeof val === "string" || typeof val === "number") return new Date(val);
   return new Date();

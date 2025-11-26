@@ -6,6 +6,7 @@ import { AdminLayout } from "@/components/admin/AdminLayout";
 import { Controller, useForm } from "react-hook-form";
 import { z } from "zod";
 import { zodResolver } from "@hookform/resolvers/zod";
+import Image from "next/image";
 import { Button } from "@/components/ui/button";
 import {
   Table,
@@ -451,14 +452,18 @@ export default function AdminPage() {
     <ProtectedRoute requireAdmin>
       <AdminLayout>
         <div className="flex flex-col gap-6 pb-10">
-          <div className="flex flex-col gap-2">
-            <h1 className="text-2xl font-semibold text-zinc-900">Admin Dashboard</h1>
-            <p className="text-sm text-zinc-600">
-              Manage events, pixels, and attendance. Mirrors legacy admin flows with a modern UI.
+          <div className="flex flex-col gap-3">
+            <div className="inline-flex items-center gap-2 rounded-full bg-primary/10 px-3 py-1 text-xs font-semibold text-primary ring-1 ring-primary/15">
+              <Image src="/images/h4i.png" alt="Hack4Impact" width={20} height={20} className="h-5 w-5" priority />
+              Admin workspace
+            </div>
+            <h1 className="text-3xl font-bold text-foreground">Admin Dashboard</h1>
+            <p className="text-sm text-muted-foreground">
+              Manage events, pixels, and attendance. Mirrors legacy admin flows with a calmer UI.
             </p>
           </div>
 
-          <Card>
+          <Card className="border-primary/10 bg-white/90 shadow-sm backdrop-blur">
             <CardHeader>
               <CardTitle>{editingId ? "Edit event" : "Create event"}</CardTitle>
               <CardDescription>Manage event metadata and pixel allocation.</CardDescription>
@@ -539,7 +544,7 @@ export default function AdminPage() {
             </CardContent>
           </Card>
 
-          <Card>
+          <Card className="border-primary/10 bg-white/90 shadow-sm backdrop-blur">
             <CardHeader className="flex flex-row items-center justify-between">
               <div>
                 <CardTitle>Events</CardTitle>
@@ -707,7 +712,7 @@ export default function AdminPage() {
             </CardContent>
           </Card>
 
-          <Card>
+          <Card className="border-primary/10 bg-white/90 shadow-sm backdrop-blur">
             <CardHeader className="flex items-center justify-between">
               <div>
                 <CardTitle>Excused Absences</CardTitle>
@@ -778,7 +783,7 @@ export default function AdminPage() {
             </CardContent>
           </Card>
 
-          <Card>
+          <Card className="border-primary/10 bg-white/90 shadow-sm backdrop-blur">
             <CardHeader>
               <CardTitle>Manage Attendees</CardTitle>
               <CardDescription>Add or remove attendees by user ID or email list.</CardDescription>

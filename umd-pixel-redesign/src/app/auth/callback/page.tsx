@@ -5,15 +5,20 @@ import { useRouter, useSearchParams } from "next/navigation";
 import { httpsCallable } from "firebase/functions";
 import { signInWithCustomToken } from "firebase/auth";
 import { auth, functions } from "@/lib/firebase";
+import Image from "next/image";
 
 export default function CallbackPage() {
   return (
     <Suspense
       fallback={
-        <div className="min-h-screen flex items-center justify-center bg-gray-100">
-          <div className="bg-white p-8 rounded-lg shadow-md text-center">
-            <h1 className="text-2xl font-bold mb-4">Completing sign-in…</h1>
-            <p className="text-gray-600">Loading…</p>
+        <div className="relative flex min-h-screen items-center justify-center bg-gradient-to-br from-primary/5 via-white to-secondary/20">
+        <div className="absolute inset-0 -z-10 bg-[radial-gradient(circle_at_20%_20%,rgba(0,105,202,0.12),transparent_35%),radial-gradient(circle_at_80%_0%,rgba(128,210,200,0.18),transparent_30%)]" />
+          <div className="flex items-center gap-3 rounded-2xl border border-primary/10 bg-white/80 px-6 py-4 text-sm text-muted-foreground shadow-sm backdrop-blur">
+            <span className="h-10 w-10 animate-spin rounded-full border-2 border-primary/20 border-t-primary" aria-label="Loading" />
+            <div>
+              <div className="text-base font-semibold text-foreground">Completing sign-in…</div>
+              <p className="text-sm text-muted-foreground">Connecting to Slack.</p>
+            </div>
           </div>
         </div>
       }
@@ -60,18 +65,22 @@ function SlackCallback() {
 
         await signInWithCustomToken(auth, token);
         router.replace("/");
-      } catch (err: any) {
+      } catch (err: unknown) {
         console.error("Slack auth callback failed", err);
 
         let errorMessage = "Authentication failed. Please try again.";
-        if (err?.message) {
-          if (err.message.includes("redirect_uri_mismatch") || err.code === "invalid-argument") {
-            errorMessage = "Redirect URI mismatch. Please contact support.";
-          } else if (err.message.includes("failed-precondition")) {
-            errorMessage = "Server configuration error. Please contact support.";
-          } else if (err.message.includes("permission-denied")) {
-            errorMessage = "You are not authorized to access this application.";
-          }
+        const message = err instanceof Error ? err.message : "";
+        const code =
+          typeof err === "object" && err !== null && "code" in err
+            ? (err as { code?: string }).code
+            : undefined;
+
+        if (message.includes("redirect_uri_mismatch") || code === "invalid-argument") {
+          errorMessage = "Redirect URI mismatch. Please contact support.";
+        } else if (message.includes("failed-precondition")) {
+          errorMessage = "Server configuration error. Please contact support.";
+        } else if (message.includes("permission-denied")) {
+          errorMessage = "You are not authorized to access this application.";
         }
 
         setStatus(errorMessage);
@@ -82,10 +91,14 @@ function SlackCallback() {
   }, [router, searchParams]);
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gray-100">
-      <div className="bg-white p-8 rounded-lg shadow-md text-center">
-        <h1 className="text-2xl font-bold mb-4">Completing sign-in…</h1>
-        <p className="text-gray-600">{status}</p>
+    <div className="relative flex min-h-screen items-center justify-center bg-gradient-to-br from-primary/5 via-white to-secondary/20 px-4">
+      <div className="absolute inset-0 -z-10 bg-[radial-gradient(circle_at_10%_10%,rgba(0,105,202,0.14),transparent_32%),radial-gradient(circle_at_80%_20%,rgba(128,210,200,0.2),transparent_30%)]" />
+      <div className="w-full max-w-lg rounded-3xl border border-primary/10 bg-white/85 p-8 text-center shadow-lg backdrop-blur">
+        <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-full bg-primary text-primary-foreground shadow-md ring-2 ring-primary/20">
+          <Image src="/images/h4i.png" alt="Hack4Impact" width={28} height={28} className="h-7 w-7" priority />
+        </div>
+        <h1 className="mt-4 text-2xl font-bold text-foreground">Completing sign-in…</h1>
+        <p className="mt-2 text-sm text-muted-foreground">{status}</p>
       </div>
     </div>
   );

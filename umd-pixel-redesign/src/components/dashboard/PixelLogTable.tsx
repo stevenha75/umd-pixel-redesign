@@ -52,17 +52,24 @@ export function PixelLogTable({ rows }: Props) {
   };
 
   return (
-    <section className="rounded-2xl border border-border bg-card p-6 shadow-sm">
-      <div className="mb-4 flex items-center justify-between">
-        <div>
-          <h2 className="text-lg font-semibold text-foreground">Pixel log</h2>
-          <p className="text-sm text-muted-foreground">{rows.length} events</p>
+    <section className="rounded-2xl border border-primary/10 bg-white/90 p-6 shadow-sm backdrop-blur">
+      <div className="mb-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+        <div className="flex items-center gap-3">
+          <div className="flex h-10 w-10 items-center justify-center rounded-full bg-primary/10 text-primary ring-1 ring-primary/15">
+            <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6">
+              <path strokeLinecap="round" strokeLinejoin="round" d="M5 12h14M5 17h7M5 7h9" />
+            </svg>
+          </div>
+          <div>
+            <h2 className="text-lg font-semibold text-foreground">Pixel log</h2>
+            <p className="text-sm text-muted-foreground">{rows.length} events tracked</p>
+          </div>
         </div>
         <div className="flex items-center gap-2 text-sm">
           <Button variant="outline" size="sm" onClick={() => setPage((p) => Math.max(0, p - 1))} disabled={!canPrev}>
             Prev
           </Button>
-          <span className="text-muted-foreground">
+          <span className="rounded-full bg-muted px-3 py-1 text-xs font-semibold text-muted-foreground">
             Page {page + 1} of {totalPages}
           </span>
           <Button variant="outline" size="sm" onClick={() => setPage((p) => Math.min(totalPages - 1, p + 1))} disabled={!canNext}>
@@ -74,28 +81,41 @@ export function PixelLogTable({ rows }: Props) {
         <Table>
           <TableHeader>
             <TableRow>
-              <TableHead>Date</TableHead>
+              <TableHead className="text-muted-foreground">Date</TableHead>
               <TableHead>
-                <button onClick={() => toggleSort("name")} className="flex items-center gap-1">
-                  Name {sortKey === "name" ? (sortDir === "asc" ? "▲" : "▼") : ""}
+                <button
+                  onClick={() => toggleSort("name")}
+                  className="inline-flex items-center gap-2 rounded-full px-2 py-1 text-left text-foreground transition hover:bg-muted"
+                >
+                  Name{" "}
+                  {sortKey === "name" ? (
+                    <span className="text-xs text-primary">{sortDir === "asc" ? "▲" : "▼"}</span>
+                  ) : (
+                    <span className="text-xs text-muted-foreground">↕</span>
+                  )}
                 </button>
               </TableHead>
-              <TableHead>Type</TableHead>
-              <TableHead>Attendance</TableHead>
+              <TableHead className="text-muted-foreground">Type</TableHead>
+              <TableHead className="text-muted-foreground">Attendance</TableHead>
               <TableHead className="text-right">
                 <button
                   onClick={() => toggleSort("pixels")}
-                  className="flex w-full items-center justify-end gap-1"
+                  className="flex w-full items-center justify-end gap-2 rounded-full px-2 py-1 text-right text-foreground transition hover:bg-muted"
                 >
-                  Pixels Allocated {sortKey === "pixels" ? (sortDir === "asc" ? "▲" : "▼") : ""}
+                  Pixels Allocated{" "}
+                  {sortKey === "pixels" ? (
+                    <span className="text-xs text-primary">{sortDir === "asc" ? "▲" : "▼"}</span>
+                  ) : (
+                    <span className="text-xs text-muted-foreground">↕</span>
+                  )}
                 </button>
               </TableHead>
-              <TableHead className="text-right">Pixels Earned</TableHead>
+              <TableHead className="text-right text-muted-foreground">Pixels Earned</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
             {pageRows.map((row) => (
-              <TableRow key={row.id}>
+              <TableRow key={row.id} className="odd:bg-muted/30">
                 <TableCell className="whitespace-nowrap text-foreground">{row.date}</TableCell>
                 <TableCell className="text-foreground">{row.name}</TableCell>
                 <TableCell className="text-muted-foreground">{row.type}</TableCell>

@@ -100,7 +100,7 @@ export async function fetchAdminData(): Promise<AdminData> {
   const attendeeIds = new Set<string>();
 
   eventsSnap.forEach((d) => {
-    const data = d.data() as any;
+    const data = d.data() as EventDocument;
     const dateVal =
       data.date?.toDate?.() ??
       (data.date instanceof Date ? data.date : new Date(data.date || Date.now()));
@@ -290,7 +290,7 @@ export async function fetchMembers(): Promise<MemberRecord[]> {
       lastName: data.lastName || "",
       email: data.email || data.slackEmail || "",
       pixels: data.pixelCached ?? data.pixels ?? 0,
-      pixelDelta: data.pixelDelta ?? (data as any).pixeldelta ?? 0,
+      pixelDelta: data.pixelDelta ?? data.pixeldelta ?? 0,
       rank: idx + 1,
     };
   });
