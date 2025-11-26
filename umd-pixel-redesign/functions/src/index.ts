@@ -52,41 +52,57 @@ export const getSlackUsers = functions
             );
         }
 
+        const allMembers: unknown[] = [];
+        let cursor: string | undefined;
+        let pageCount = 0;
+        const MAX_PAGES = 20; // Safety limit
+
         try {
-            const response = await axios.get("https://slack.com/api/users.list", {
-                headers: {
-                    Authorization: `Bearer ${SLACK_BOT_TOKEN}`,
-                },
-                params: {
-                    limit: 1000, // Adjust if workspace is huge, might need pagination
+            do {
+                const response = await axios.get("https://slack.com/api/users.list", {
+                    headers: {
+                        Authorization: `Bearer ${SLACK_BOT_TOKEN}`,
+                    },
+                    params: {
+                        limit: 1000,
+                        cursor: cursor,
+                    },
+                });
+
+                if (!response.data.ok) {
+                    throw new functions.https.HttpsError(
+                        "internal",
+                        `Slack API error: ${response.data.error}`
+                    );
                 }
-            });
 
-            if (!response.data.ok) {
-                throw new functions.https.HttpsError(
-                    "internal",
-                    `Slack API error: ${response.data.error}`
-                );
-            }
+                const members = response.data.members || [];
+                
+                const validChunk = members
+                    .filter((m: SlackMember) => 
+                        !m.deleted && 
+                        !m.is_bot && 
+                        !m.is_app_user && 
+                        m.id !== "USLACKBOT" &&
+                        m.profile?.email
+                    )
+                    .map((m: SlackMember) => ({
+                        id: m.id,
+                        name: m.name,
+                        real_name: m.real_name,
+                        email: m.profile.email,
+                        image_original: m.profile.image_original || m.profile.image_512,
+                    }));
 
-            const members = response.data.members || [];
-            const validMembers = members
-                .filter((m: SlackMember) => 
-                    !m.deleted && 
-                    !m.is_bot && 
-                    !m.is_app_user && 
-                    m.id !== "USLACKBOT" &&
-                    m.profile?.email
-                )
-                .map((m: SlackMember) => ({
-                    id: m.id,
-                    name: m.name,
-                    real_name: m.real_name,
-                    email: m.profile.email,
-                    image_original: m.profile.image_original || m.profile.image_512,
-                }));
+                allMembers.push(...validChunk);
+                
+                cursor = response.data.response_metadata?.next_cursor;
+                pageCount++;
 
-            return { members: validMembers };
+            } while (cursor && pageCount < MAX_PAGES);
+
+            return { members: allMembers };
+
         } catch (error) {
             console.error("Failed to fetch Slack users:", error);
              if (error instanceof functions.https.HttpsError) {
