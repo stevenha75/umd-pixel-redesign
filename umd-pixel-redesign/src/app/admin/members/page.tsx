@@ -19,7 +19,6 @@ import { useQuery } from "@tanstack/react-query";
 import {
   MemberRecord,
   fetchMembers,
-  updateMember,
   deleteMember,
   fetchAdminData,
   addAttendee,
