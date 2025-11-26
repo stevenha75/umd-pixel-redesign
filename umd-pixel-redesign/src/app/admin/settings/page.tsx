@@ -234,9 +234,9 @@ export default function SettingsPage() {
                     <DialogTitle>Reset semester</DialogTitle>
                   </DialogHeader>
                   <p className="text-sm text-muted-foreground">
-                    To reset: 1) archive events/activities to a collection copy, 2) clear attendees,
-                    excused absences, multipliers, 3) set new `currentSemesterId`. This UI does not
-                    automate resets to prevent unintended data loss.
+                    To reset: set a new `currentSemesterId` and recalc scores. Events, activities,
+                    and excused requests are scoped by semester; pixel adjustments use the
+                    current semester. This UI does not automate archive/reset to prevent data loss.
                   </p>
                 </DialogContent>
               </Dialog>
