@@ -103,21 +103,6 @@ export default function MembersPage() {
 
   const clearSelection = () => setSelected(new Set());
 
-  const handleUpdateMember = async () => {
-    if (!editing) return;
-    setSaving(true);
-    try {
-      await updateMember(editing.id, {
-        firstName: editing.firstName,
-        lastName: editing.lastName,
-        email: editing.email.toLowerCase(),
-      });
-      await membersQuery.refetch();
-    } finally {
-      setSaving(false);
-    }
-  };
-
   const handleDeleteSelected = async () => {
     setSaving(true);
     try {
@@ -414,7 +399,7 @@ export default function MembersPage() {
           </Card>
 
           <div className="grid gap-6 md:grid-cols-2 items-start">
-            <Card>
+            <Card className="self-start">
               <CardHeader>
                 <CardTitle>Add Member</CardTitle>
                 <CardDescription>Import a member from the Slack workspace.</CardDescription>
@@ -503,24 +488,15 @@ export default function MembersPage() {
               <CardContent className="space-y-3">
                 {selectedMember ? (
                   <>
-                    <Input
-                      value={selectedMember.firstName}
-                      onChange={(e) =>
-                        setEditing((prev) => prev && { ...prev, firstName: e.target.value })
-                      }
-                    />
-                    <Input
-                      value={selectedMember.lastName}
-                      onChange={(e) =>
-                        setEditing((prev) => prev && { ...prev, lastName: e.target.value })
-                      }
-                    />
-                    <Input
-                      value={selectedMember.email}
-                      onChange={(e) =>
-                        setEditing((prev) => prev && { ...prev, email: e.target.value })
-                      }
-                    />
+                    <div className="rounded-md border bg-muted/40 p-3">
+                      <div className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+                        Member
+                      </div>
+                      <div className="mt-1 text-sm font-medium text-foreground">
+                        {selectedMember.firstName} {selectedMember.lastName}
+                      </div>
+                      <div className="text-sm text-muted-foreground">{selectedMember.email}</div>
+                    </div>
                     <div className="flex flex-col gap-3">
                       <div className="text-sm text-muted-foreground">
                         Pixels: {selectedMember.pixels} (Delta {selectedMember.pixelDelta})
