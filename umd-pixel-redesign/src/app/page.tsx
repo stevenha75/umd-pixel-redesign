@@ -1,6 +1,5 @@
 "use client";
 import { useEffect, useState } from "react";
-import Image from "next/image";
 import { useQuery } from "@tanstack/react-query";
 import Navbar from "@/components/Navbar";
 import { ProtectedRoute } from "@/components/ProtectedRoute";
