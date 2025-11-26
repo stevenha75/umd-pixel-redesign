@@ -10,6 +10,7 @@ import {
   where,
 } from "firebase/firestore";
 import { db } from "./firebase";
+import { toDate } from "./dates";
 import type { EventDocument, UserDocument, ActivityDocument } from "./types";
 
 export type PixelLogRow = {
@@ -51,24 +52,6 @@ export type ActivityRow = {
 };
 
 const requiredTypes = ["GBM", "other_mandatory"];
-
-type FirestoreDate = {
-  toDate?: () => Date;
-};
-
-function toDate(val: unknown) {
-  if (
-    typeof val === "object" &&
-    val !== null &&
-    "toDate" in val &&
-    typeof (val as FirestoreDate).toDate === "function"
-  ) {
-    return (val as FirestoreDate).toDate?.() ?? new Date();
-  }
-  if (val instanceof Date) return val;
-  if (typeof val === "string" || typeof val === "number") return new Date(val);
-  return new Date();
-}
 
 export async function fetchDashboardData(userId: string): Promise<DashboardData> {
   const userSnap = await getDoc(doc(db, "users", userId));

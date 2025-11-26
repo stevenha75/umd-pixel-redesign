@@ -15,6 +15,7 @@ import {
   where,
 } from "firebase/firestore";
 import { db } from "./firebase";
+import { toDate } from "./dates";
 import type {
   EventDocument,
   UserDocument,
@@ -101,9 +102,7 @@ export async function fetchAdminData(): Promise<AdminData> {
 
   eventsSnap.forEach((d) => {
     const data = d.data() as EventDocument;
-    const dateVal =
-      data.date?.toDate?.() ??
-      (data.date instanceof Date ? data.date : new Date(data.date || Date.now()));
+    const dateVal = toDate(data.date);
     const name = data.name || "Event";
     const attendees: string[] = data.attendees || [];
     attendees.forEach((id) => attendeeIds.add(id));
