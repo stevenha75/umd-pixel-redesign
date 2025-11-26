@@ -7,7 +7,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Checkbox } from "@/components/ui/checkbox";
-import { doc, getDoc, updateDoc } from "firebase/firestore";
+import { doc, getDoc, setDoc } from "firebase/firestore";
 import { db } from "@/lib/firebase";
 import { useQuery } from "@tanstack/react-query";
 import { setAdminFlag } from "@/lib/api";
@@ -40,10 +40,10 @@ export default function SettingsPage() {
   const handleSave = async () => {
     setSaving(true);
     try {
-      await updateDoc(doc(db, "settings", "global"), {
+      await setDoc(doc(db, "settings", "global"), {
         currentSemesterId: currentSemesterId.trim(),
         isLeadershipOn,
-      });
+      }, { merge: true });
       toast.success("Settings saved.");
       settingsQuery.refetch();
     } catch (err) {
