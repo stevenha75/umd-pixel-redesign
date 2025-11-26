@@ -59,3 +59,11 @@ export interface SemesterDocument {
   endDate: Timestamp;
   active: boolean;
 }
+
+export interface SlackUser {
+  id: string;
+  name: string;
+  real_name: string;
+  email: string;
+  image_original?: string;
+}

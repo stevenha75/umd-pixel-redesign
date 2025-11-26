@@ -10,6 +10,7 @@ if (!admin.apps.length) {
 const SLACK_CLIENT_ID = functions.config().slack?.client_id || process.env.SLACK_CLIENT_ID;
 const SLACK_CLIENT_SECRET = functions.config().slack?.client_secret || process.env.SLACK_CLIENT_SECRET;
 const SLACK_TEAM_ID = functions.config().slack?.team_id || process.env.SLACK_TEAM_ID;
+const SLACK_BOT_TOKEN = functions.config().slack?.bot_token || process.env.SLACK_BOT_TOKEN;
 
 function assertSlackConfig() {
     if (!SLACK_CLIENT_ID || !SLACK_CLIENT_SECRET) {
@@ -19,6 +20,81 @@ function assertSlackConfig() {
         );
     }
 }
+
+interface SlackMember {
+    id: string;
+    name: string;
+    real_name: string;
+    profile: {
+        email: string;
+        image_original?: string;
+        image_512?: string;
+    };
+    deleted: boolean;
+    is_bot: boolean;
+    is_app_user: boolean;
+}
+
+export const getSlackUsers = functions
+    .region("us-central1")
+    .https.onCall(async (data, context) => {
+        if (!context.auth?.token.isAdmin) {
+            throw new functions.https.HttpsError(
+                "permission-denied",
+                "Must be an admin to fetch Slack users."
+            );
+        }
+
+        if (!SLACK_BOT_TOKEN) {
+            throw new functions.https.HttpsError(
+                "failed-precondition",
+                "Slack Bot Token missing (SLACK_BOT_TOKEN). Please configure slack.bot_token."
+            );
+        }
+
+        try {
+            const response = await axios.get("https://slack.com/api/users.list", {
+                headers: {
+                    Authorization: `Bearer ${SLACK_BOT_TOKEN}`,
+                },
+                params: {
+                    limit: 1000, // Adjust if workspace is huge, might need pagination
+                }
+            });
+
+            if (!response.data.ok) {
+                throw new functions.https.HttpsError(
+                    "internal",
+                    `Slack API error: ${response.data.error}`
+                );
+            }
+
+            const members = response.data.members || [];
+            const validMembers = members
+                .filter((m: SlackMember) => 
+                    !m.deleted && 
+                    !m.is_bot && 
+                    !m.is_app_user && 
+                    m.id !== "USLACKBOT" &&
+                    m.profile?.email
+                )
+                .map((m: SlackMember) => ({
+                    id: m.id,
+                    name: m.name,
+                    real_name: m.real_name,
+                    email: m.profile.email,
+                    image_original: m.profile.image_original || m.profile.image_512,
+                }));
+
+            return { members: validMembers };
+        } catch (error) {
+            console.error("Failed to fetch Slack users:", error);
+             if (error instanceof functions.https.HttpsError) {
+                throw error;
+            }
+            throw new functions.https.HttpsError("internal", "Failed to fetch Slack users.");
+        }
+    });
 
 export const authWithSlack = functions
     .region("us-central1")
@@ -246,12 +322,9 @@ export const onExcusedAbsenceUpdate = functions
 /**
  * Helper function to recalculate total pixels for a user.
  * Sums up:
- * 1. Pixels from attended events.
- * 2. Pixels from approved excused absences (if applicable - usually excused means no pixels but attendance credit, 
- *    BUT the old code logic says: if (required && attended == "Excused") -> requiredExcused += 1.
- *    And: if (attended == "Attended" && eventDoc["pixels"] > 0) -> pixelsEarned += eventDoc["pixels"].
- *    So Excused absences do NOT give pixels, only attendance credit.
- *    Wait, let's double check the old code.
+ * 1. Pixels from attended events (where user is not excused).
+ * 2. Pixels from approved excused absences (attendance credit only, usually no pixels unless configured).
+ * 3. Pixels from activities (multipliers).
  */
 async function recalculateUserPixels(userId: string) {
     const db = admin.firestore();
@@ -348,10 +421,9 @@ export const onActivityUpdate = functions
 export const recalculateAllUserPixels = functions
     .region("us-central1")
     .https.onCall(async (data, context) => {
-        // Optional: Check for admin auth if context.auth is available
-        // if (!context.auth?.token.isAdmin) {
-        //   throw new functions.https.HttpsError("permission-denied", "Must be an admin.");
-        // }
+        if (!context.auth?.token.isAdmin) {
+          throw new functions.https.HttpsError("permission-denied", "Must be an admin.");
+        }
 
         const db = admin.firestore();
         const usersSnap = await db.collection("users").get();

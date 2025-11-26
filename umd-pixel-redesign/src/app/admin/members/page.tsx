@@ -25,7 +25,22 @@ import {
   fetchAdminData,
   addAttendee,
   setAttendanceStatus,
+  fetchSlackUsers,
+  addSlackMember,
+  SlackUser,
+  mergeMembers,
 } from "@/lib/api";
+import {
+    Dialog,
+    DialogContent,
+    DialogDescription,
+    DialogFooter,
+    DialogHeader,
+    DialogTitle,
+    DialogTrigger,
+} from "@/components/ui/dialog";
+import { Badge } from "@/components/ui/badge";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 
 export default function MembersPage() {
   const [selected, setSelected] = useState<Set<string>>(new Set());
@@ -35,6 +50,15 @@ export default function MembersPage() {
   const [newMember, setNewMember] = useState({ firstName: "", lastName: "", email: "" });
   const [eventTarget, setEventTarget] = useState("");
   const [saving, setSaving] = useState(false);
+  const [mergeDialogOpen, setMergeDialogOpen] = useState(false);
+  const [mergeTargetId, setMergeTargetId] = useState<string>("");
+  
+  // Slack State
+  const [slackOpen, setSlackOpen] = useState(false);
+  const [slackUsers, setSlackUsers] = useState<SlackUser[]>([]);
+  const [slackSearch, setSlackSearch] = useState("");
+  const [loadingSlack, setLoadingSlack] = useState(false);
+
   const membersQuery = useQuery<MemberRecord[]>({ queryKey: ["members"], queryFn: fetchMembers });
   const adminQuery = useQuery({ queryKey: ["admin-data"], queryFn: fetchAdminData });
 
@@ -123,6 +147,71 @@ export default function MembersPage() {
       setMessage("Added to event.");
     } finally {
       setSaving(false);
+    }
+  };
+
+  const handleAddSlackUser = async (user: SlackUser) => {
+      setSaving(true);
+      try {
+          await addSlackMember(user);
+          await membersQuery.refetch();
+          setSlackOpen(false);
+          setMessage("Member added successfully.");
+      } catch (error) {
+          console.error(error);
+          setMessage(error instanceof Error ? error.message : "Failed to add member.");
+      } finally {
+          setSaving(false);
+      }
+  };
+
+  const loadSlackUsers = async () => {
+      if (slackUsers.length > 0) return;
+      setLoadingSlack(true);
+      try {
+          const users = await fetchSlackUsers();
+          setSlackUsers(users);
+      } catch (e) {
+          console.error(e);
+          setMessage("Failed to load Slack users. Check configuration.");
+      } finally {
+          setLoadingSlack(false);
+      }
+  };
+
+  const filteredSlackUsers = useMemo(() => {
+      const term = slackSearch.toLowerCase();
+      return slackUsers.filter(u => 
+          (u.real_name || "").toLowerCase().includes(term) ||
+          (u.name || "").toLowerCase().includes(term) ||
+          (u.email || "").toLowerCase().includes(term)
+      );
+  }, [slackUsers, slackSearch]);
+
+  const handleMerge = async () => {
+    if (selected.size !== 2 || !mergeTargetId) return;
+    
+    const ids = Array.from(selected);
+    const sourceId = ids.find(id => id !== mergeTargetId);
+    
+    if (!sourceId || !mergeTargetId || sourceId === mergeTargetId) return;
+
+    setSaving(true);
+    try {
+        await mergeMembers(sourceId, mergeTargetId);
+        
+        await membersQuery.refetch();
+        
+        clearSelection();
+        setMergeTargetId("");
+        setMergeDialogOpen(false);
+        
+        setMessage("Members merged successfully.");
+    } catch (error) {
+        console.error("Merge failed:", error);
+        setMessage("Failed to merge members.");
+    } finally {
+        setSaving(false);
     }
   };
 
@@ -337,9 +426,90 @@ export default function MembersPage() {
             <Card>
               <CardHeader>
                 <CardTitle>Add Member</CardTitle>
-                <CardDescription>Create a new member manually.</CardDescription>
+                <CardDescription>Import a member from the Slack workspace.</CardDescription>
               </CardHeader>
               <CardContent className="space-y-3">
+                  <Dialog open={slackOpen} onOpenChange={(open) => {
+                      setSlackOpen(open);
+                      if (open) loadSlackUsers();
+                  }}>
+                      <DialogTrigger asChild>
+                          <Button variant="outline" className="w-full h-12 justify-start px-4 text-left font-normal">
+                              <div className="flex items-center gap-2">
+                                  <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="lucide lucide-slack"><rect width="3" height="8" x="13" y="2" rx="1.5"/><path d="M19 8.5V10h1.5A1.5 1.5 0 1 0 19 8.5"/><rect width="3" height="8" x="8" y="14" rx="1.5"/><path d="M5 15.5V14H3.5A1.5 1.5 0 1 0 5 15.5"/><rect width="8" height="3" x="14" y="13" rx="1.5"/><path d="M15.5 19H14v1.5a1.5 1.5 0 1 0 1.5-1.5"/><rect width="8" height="3" x="2" y="8" rx="1.5"/><path d="M8.5 5H10V3.5A1.5 1.5 0 1 0 8.5 5"/></svg>
+                                  <div className="flex flex-col items-start">
+                                      <span className="text-sm font-medium text-foreground">Select from Slack</span>
+                                      <span className="text-xs text-muted-foreground">Search workspace members</span>
+                                  </div>
+                              </div>
+                          </Button>
+                      </DialogTrigger>
+                      <DialogContent className="max-w-md h-[600px] flex flex-col">
+                          <DialogHeader>
+                              <DialogTitle>Select Slack Member</DialogTitle>
+                              <DialogDescription>
+                                  Search for a user in the Slack workspace to add them to the database.
+                              </DialogDescription>
+                          </DialogHeader>
+                          <div className="flex flex-col gap-4 flex-1 min-h-0 py-2">
+                              <Input 
+                                  placeholder="Search by name or email..." 
+                                  value={slackSearch}
+                                  onChange={e => setSlackSearch(e.target.value)}
+                                  autoFocus
+                              />
+                              <div className="flex-1 overflow-y-auto border rounded-md">
+                                  {loadingSlack ? (
+                                      <div className="flex h-full items-center justify-center p-4 text-muted-foreground">
+                                          <LoadingState variant="inline" title="Loading Slack users..." />
+                                      </div>
+                                  ) : (
+                                      <div className="divide-y">
+                                          {filteredSlackUsers.map(u => {
+                                              const exists = members.some(m => m.email === u.email || m.slackId === u.id);
+                                              return (
+                                                  <div 
+                                                      key={u.id} 
+                                                      className={`flex items-center gap-3 p-3 transition-colors ${exists ? 'opacity-50 bg-muted/50' : 'hover:bg-muted/50 cursor-pointer'}`}
+                                                      onClick={() => !exists && handleAddSlackUser(u)}
+                                                  >
+                                                      <Avatar className="h-9 w-9 border">
+                                                          <AvatarImage src={u.image_original} />
+                                                          <AvatarFallback>{(u.real_name || u.name).substring(0, 2).toUpperCase()}</AvatarFallback>
+                                                      </Avatar>
+                                                      <div className="flex-1 overflow-hidden">
+                                                          <div className="font-medium truncate text-sm">{u.real_name || u.name}</div>
+                                                          <div className="text-xs text-muted-foreground truncate">{u.email}</div>
+                                                      </div>
+                                                      {exists ? (
+                                                          <Badge variant="outline" className="text-[10px]">Added</Badge>
+                                                      ) : (
+                                                          <Button size="sm" variant="ghost" className="h-7 px-2">Add</Button>
+                                                      )}
+                                                  </div>
+                                              );
+                                          })}
+                                          {filteredSlackUsers.length === 0 && !loadingSlack && (
+                                              <div className="p-4 text-center text-sm text-muted-foreground">
+                                                  No users found matching "{slackSearch}".
+                                              </div>
+                                          )}
+                                      </div>
+                                  )}
+                              </div>
+                          </div>
+                      </DialogContent>
+                  </Dialog>
+                  
+                  <div className="relative py-2">
+                    <div className="absolute inset-0 flex items-center">
+                      <span className="w-full border-t" />
+                    </div>
+                    <div className="relative flex justify-center text-xs uppercase">
+                      <span className="bg-background px-2 text-muted-foreground">Or add manually</span>
+                    </div>
+                  </div>
+
                 <Input
                   placeholder="First name"
                   value={newMember.firstName}
@@ -355,11 +525,12 @@ export default function MembersPage() {
                   value={newMember.email}
                   onChange={(e) => setNewMember((p) => ({ ...p, email: e.target.value }))}
                 />
-                <Button onClick={handleAddMember} disabled={saving}>
-                  {saving ? "Saving…" : "Add member"}
+                <Button onClick={handleAddMember} disabled={saving} variant="secondary" className="w-full">
+                  {saving ? "Saving…" : "Add manually"}
                 </Button>
               </CardContent>
             </Card>
+
 
             <Card>
               <CardHeader>

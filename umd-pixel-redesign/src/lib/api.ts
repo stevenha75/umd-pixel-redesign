@@ -14,15 +14,21 @@ import {
   query,
   updateDoc,
   where,
+  setDoc,
 } from "firebase/firestore";
-import { db } from "./firebase";
+import { httpsCallable } from "firebase/functions";
+import { db, functions } from "./firebase";
 import { toDate } from "./dates";
 import type {
   EventDocument,
   UserDocument,
   ActivityDocument,
   ExcusedAbsenceDocument,
+  SlackUser,
 } from "./types";
+
+export { SlackUser };
+
 
 export type EventRecord = {
   id: string;
@@ -82,6 +88,7 @@ export type ActivityRecord = {
   semesterId?: string;
   multipliers: { userId: string; multiplier: number }[];
 };
+
 
 export async function fetchAdminData(): Promise<AdminData> {
   const settingsSnap = await getDoc(doc(db, "settings", "global"));
@@ -425,3 +432,50 @@ export async function fetchUserDetails(ids: string[]) {
   );
   return details;
 }
+
+export async function mergeMembers(sourceUserId: string, targetUserId: string) {
+  const mergeUsersFn = httpsCallable(functions, "mergeUsers");
+  await mergeUsersFn({ sourceUserId, targetUserId });
+}
+
+export async function fetchSlackUsers(): Promise<SlackUser[]> {
+  const getSlackUsersFn = httpsCallable<Record<string, never>, { members: SlackUser[] }>(
+    functions,
+    "getSlackUsers"
+  );
+  const result = await getSlackUsersFn({});
+  return result.data.members;
+}
+
+export async function addSlackMember(user: SlackUser) {
+  // Check if user exists by ID
+  const userDoc = await getDoc(doc(db, "users", user.id));
+  if (userDoc.exists()) {
+    throw new Error("User already exists (Slack ID match).");
+  }
+
+  // Check if user exists by email (to prevent duplicates)
+  const emailQuery = await getDocs(
+    query(collection(db, "users"), where("email", "==", user.email))
+  );
+  if (!emailQuery.empty) {
+    throw new Error(`User with email ${user.email} already exists.`);
+  }
+
+  const nameParts = (user.real_name || user.name).split(" ");
+  const firstName = nameParts[0];
+  const lastName = nameParts.slice(1).join(" ") || "";
+
+  await setDoc(doc(db, "users", user.id), {
+    firstName,
+    lastName,
+    email: user.email,
+    slackId: user.id,
+    isAdmin: false,
+    pixels: 0,
+    pixelCached: 0,
+    pixelDelta: 0,
+    createdAt: Timestamp.now(),
+  });
+}
+
