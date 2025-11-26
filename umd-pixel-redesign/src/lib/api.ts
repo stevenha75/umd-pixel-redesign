@@ -7,6 +7,7 @@ import {
   collectionGroup,
   deleteDoc,
   doc,
+  documentId,
   getDoc,
   getDocs,
   orderBy,
@@ -141,17 +142,14 @@ export async function fetchAdminData(): Promise<AdminData> {
   });
 
   const userDetails = new Map<string, { name: string; email: string }>();
-  await Promise.all(
-    Array.from(userIds).map(async (uid) => {
-      const userSnap = await getDoc(doc(db, "users", uid));
-      if (userSnap.exists()) {
-        const data = userSnap.data() as UserDocument;
-        const name = `${data.firstName || ""} ${data.lastName || ""}`.trim() || "Member";
-        const email = data.email || data.slackEmail || "";
-        userDetails.set(uid, { name, email });
-      }
-    })
-  );
+  
+  const usersSnap = await getDocs(collection(db, "users"));
+  usersSnap.forEach((doc) => {
+    const data = doc.data() as UserDocument;
+    const name = `${data.firstName || ""} ${data.lastName || ""}`.trim() || "Member";
+    const email = data.email || data.slackEmail || "";
+    userDetails.set(doc.id, { name, email });
+  });
 
   excused.forEach((row) => {
     const details = userDetails.get(row.userId);
@@ -405,16 +403,24 @@ export async function findUserIdByEmail(email: string): Promise<string | null> {
 
 export async function fetchUserDetails(ids: string[]) {
   const unique = Array.from(new Set(ids));
+  if (unique.length === 0) return new Map();
+
   const details = new Map<string, { name: string; email: string }>();
+  const chunks = [];
+  for (let i = 0; i < unique.length; i += 30) {
+    chunks.push(unique.slice(i, i + 30));
+  }
+
   await Promise.all(
-    unique.map(async (id) => {
-      const snap = await getDoc(doc(db, "users", id));
-      if (snap.exists()) {
-        const data = snap.data() as UserDocument;
+    chunks.map(async (chunk) => {
+      const q = query(collection(db, "users"), where(documentId(), "in", chunk));
+      const snap = await getDocs(q);
+      snap.forEach((d) => {
+        const data = d.data() as UserDocument;
         const name = `${data.firstName || ""} ${data.lastName || ""}`.trim() || "Member";
         const email = data.email || data.slackEmail || "";
-        details.set(id, { name, email });
-      }
+        details.set(d.id, { name, email });
+      });
     })
   );
   return details;
