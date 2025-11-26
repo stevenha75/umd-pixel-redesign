@@ -489,9 +489,9 @@ export default function MembersPage() {
                   <>
                     <div className="rounded-md border bg-muted/40 p-3">
                       <div className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
-                        Member
+                        Selected member
                       </div>
-                      <div className="mt-1 text-sm font-medium text-foreground">
+                      <div className="text-sm font-medium text-foreground">
                         {selectedMember.firstName} {selectedMember.lastName}
                       </div>
                       <div className="text-sm text-muted-foreground">{selectedMember.email}</div>
