@@ -45,7 +45,7 @@ export default function LoginPage() {
       <div className="mx-auto flex min-h-screen max-w-2xl items-center px-4 py-12">
         <div className="w-full rounded-3xl border border-primary/10 bg-white/80 p-10 shadow-lg backdrop-blur">
           <div className="flex items-center gap-3">
-            <div className="flex h-12 w-12 items-center justify-center rounded-full bg-primary text-primary-foreground shadow-md ring-2 ring-primary/20">
+            <div className="flex h-12 w-12 items-center justify-center rounded-full bg-white shadow-md ring-2 ring-primary/30">
               <Image src="/images/h4i.png" alt="Hack4Impact" width={32} height={32} className="h-8 w-8" priority />
             </div>
             <div>

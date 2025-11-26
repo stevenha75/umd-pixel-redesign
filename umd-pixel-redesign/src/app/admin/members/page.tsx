@@ -497,16 +497,22 @@ export default function MembersPage() {
                       <div className="text-sm text-muted-foreground">{selectedMember.email}</div>
                     </div>
                     <div className="flex flex-col gap-3">
-                      <div className="text-sm text-muted-foreground">
-                        Pixels: {selectedMember.pixels} (Delta {selectedMember.pixelDelta}){" "}
-                        <button
-                          type="button"
-                          className="ml-1 inline-flex h-5 w-5 items-center justify-center rounded-full border border-border text-[10px] text-muted-foreground hover:bg-muted"
-                          title="Adds or subtracts on top of earned pixels for this semester."
-                          aria-label="Pixel adjustment help"
-                        >
-                          ?
-                        </button>
+                      <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                        <span>
+                          Pixels: {selectedMember.pixels} (Delta {selectedMember.pixelDelta})
+                        </span>
+                        <div className="relative group">
+                          <button
+                            type="button"
+                            className="inline-flex h-5 w-5 items-center justify-center rounded-full border border-border text-[10px] text-muted-foreground hover:bg-muted"
+                            aria-label="Pixel adjustment help"
+                          >
+                            ?
+                          </button>
+                          <div className="pointer-events-none absolute left-1/2 top-full z-10 mt-1 hidden -translate-x-1/2 whitespace-nowrap rounded-md border border-border bg-popover px-2 py-1 text-xs text-foreground shadow group-hover:block">
+                            Adds or subtracts on top of earned pixels for this semester.
+                          </div>
+                        </div>
                       </div>
                       <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:gap-3">
                         <Input
