@@ -150,14 +150,21 @@ export async function fetchAdminData(): Promise<AdminData> {
   });
 
   const userDetails = new Map<string, { name: string; email: string }>();
-  
-  const usersSnap = await getDocs(collection(db, "users"));
-  usersSnap.forEach((doc) => {
-    const data = doc.data() as UserDocument;
-    const name = `${data.firstName || ""} ${data.lastName || ""}`.trim() || "Member";
-    const email = data.email || data.slackEmail || "";
-    userDetails.set(doc.id, { name, email });
-  });
+
+  const userIdList = Array.from(userIds).filter(Boolean);
+  const chunkSize = 10;
+  for (let i = 0; i < userIdList.length; i += chunkSize) {
+    const slice = userIdList.slice(i, i + chunkSize);
+    const snap = await getDocs(
+      query(collection(db, "users"), where(documentId(), "in", slice))
+    );
+    snap.forEach((doc) => {
+      const data = doc.data() as UserDocument;
+      const name = `${data.firstName || ""} ${data.lastName || ""}`.trim() || "Member";
+      const email = data.email || data.slackEmail || "";
+      userDetails.set(doc.id, { name, email });
+    });
+  }
 
   excused.forEach((row) => {
     const details = userDetails.get(row.userId);
