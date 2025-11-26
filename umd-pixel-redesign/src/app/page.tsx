@@ -6,7 +6,6 @@ import { ProtectedRoute } from "@/components/ProtectedRoute";
 import { Leaderboard } from "@/components/dashboard/Leaderboard";
 import { PixelLogTable } from "@/components/dashboard/PixelLogTable";
 import { PixelSummary } from "@/components/dashboard/PixelSummary";
-import { AdjustmentNotice } from "@/components/dashboard/AdjustmentNotice";
 import { ActivitiesTable } from "@/components/dashboard/ActivitiesTable";
 import { useAuth } from "@/context/AuthContext";
 import { DashboardData, PixelLogCursor, PixelLogRow, fetchDashboardData, fetchPixelLogPage } from "@/lib/dashboard";
@@ -118,7 +117,6 @@ export default function Home() {
                 pixelDelta={data.pixelDelta}
                 rank={data.rank}
               />
-              <AdjustmentNotice pixelDelta={data.pixelDelta} />
               <PixelLogTable
                 rows={pixelRows}
                 totalCount={pixelTotal}
