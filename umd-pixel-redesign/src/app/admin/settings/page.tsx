@@ -11,7 +11,7 @@ import { doc, getDoc, setDoc } from "firebase/firestore";
 import { httpsCallable } from "firebase/functions";
 import { db, functions } from "@/lib/firebase";
 import { useQuery } from "@tanstack/react-query";
-import { fetchMembers, setAdminByEmail } from "@/lib/api";
+import { setAdminByEmail } from "@/lib/api";
 import { CardFooter } from "@/components/ui/card";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { toast } from "sonner";
@@ -21,6 +21,8 @@ export default function SettingsPage() {
   const [isLeadershipOn, setIsLeadershipOn] = useState(false);
   const [saving, setSaving] = useState(false);
   const [adminEmail, setAdminEmail] = useState("");
+  const [emailSuggestions, setEmailSuggestions] = useState<string[]>([]);
+  const [loadingSuggestions, setLoadingSuggestions] = useState(false);
 
   const settingsQuery = useQuery({
     queryKey: ["admin-settings"],
@@ -30,19 +32,6 @@ export default function SettingsPage() {
     },
     staleTime: 60_000,
   });
-
-  const membersQuery = useQuery({
-    queryKey: ["members"],
-    queryFn: fetchMembers,
-    staleTime: 60_000,
-  });
-
-  const memberEmails = useMemo(() => {
-    const emails = membersQuery.data
-      ?.map((m) => m.email?.toLowerCase())
-      .filter(Boolean) as string[] || [];
-    return Array.from(new Set(emails)).sort();
-  }, [membersQuery.data]);
 
   useEffect(() => {
     if (settingsQuery.data) {
@@ -65,6 +54,35 @@ export default function SettingsPage() {
       toast.error("Failed to save settings.");
     } finally {
       setSaving(false);
+    }
+  };
+
+  const loadEmailSuggestions = async (value: string) => {
+    const term = value.trim().toLowerCase();
+    if (term.length < 2) {
+      setEmailSuggestions([]);
+      return;
+    }
+    setLoadingSuggestions(true);
+    try {
+      const snap = await getDocs(
+        query(
+          collection(db, "users"),
+          where("email", ">=", term),
+          where("email", "<", `${term}\uf8ff`),
+          orderBy("email", "asc"),
+          limit(10)
+        )
+      );
+      const emails = snap.docs
+        .map((d) => (d.data().email || d.data().slackEmail || "") as string)
+        .filter(Boolean);
+      setEmailSuggestions(Array.from(new Set(emails)));
+    } catch (err) {
+      console.error(err);
+      setEmailSuggestions([]);
+    } finally {
+      setLoadingSuggestions(false);
     }
   };
 
@@ -157,16 +175,30 @@ export default function SettingsPage() {
             <CardContent className="space-y-3">
               <Input
                 value={adminEmail}
-                onChange={(e) => setAdminEmail(e.target.value)}
+                onChange={(e) => {
+                  setAdminEmail(e.target.value);
+                  void loadEmailSuggestions(e.target.value);
+                }}
                 placeholder="User email"
                 type="email"
-                list="member-emails"
               />
-              <datalist id="member-emails">
-                {memberEmails.map((email) => (
-                  <option key={email} value={email} />
-                ))}
-              </datalist>
+              {emailSuggestions.length > 0 && (
+                <div className="rounded-md border bg-background shadow-sm">
+                  {emailSuggestions.map((email) => (
+                    <button
+                      key={email}
+                      className="w-full px-3 py-2 text-left text-sm hover:bg-muted"
+                      onClick={() => setAdminEmail(email)}
+                      type="button"
+                    >
+                      {email}
+                    </button>
+                  ))}
+                  {loadingSuggestions && (
+                    <div className="px-3 py-2 text-sm text-muted-foreground">Loading…</div>
+                  )}
+                </div>
+              )}
               <Button onClick={handleAddAdmin} disabled={saving}>
                 Grant admin
               </Button>

@@ -10,6 +10,7 @@ import {
   documentId,
   getDoc,
   getDocs,
+  limit,
   orderBy,
   query,
   updateDoc,
@@ -348,11 +349,13 @@ export async function setAdminByEmail(email: string, isAdmin: boolean) {
   const normalized = email.trim().toLowerCase();
   const matches = new Set<string>();
 
-  const direct = await getDocs(query(collection(db, "users"), where("email", "==", normalized)));
+  const direct = await getDocs(
+    query(collection(db, "users"), where("email", "==", normalized), limit(20))
+  );
   direct.forEach((d) => matches.add(d.id));
 
   const slack = await getDocs(
-    query(collection(db, "users"), where("slackEmail", "==", normalized))
+    query(collection(db, "users"), where("slackEmail", "==", normalized), limit(20))
   );
   slack.forEach((d) => matches.add(d.id));
 
