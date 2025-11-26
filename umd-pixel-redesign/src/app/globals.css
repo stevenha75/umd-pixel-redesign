@@ -117,7 +117,7 @@
     @apply border-border outline-ring/50;
   }
   body {
-    @apply bg-background text-foreground antialiased;
+    @apply min-h-screen bg-background text-foreground antialiased;
     background-image: radial-gradient(circle at 20% 20%, rgba(0, 105, 202, 0.08), transparent 35%),
       radial-gradient(circle at 80% 0%, rgba(128, 210, 200, 0.12), transparent 32%);
   }
