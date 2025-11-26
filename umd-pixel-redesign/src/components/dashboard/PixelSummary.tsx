@@ -1,4 +1,4 @@
-import Image from "next/image";
+import React from "react";
 
 type Props = {
   name: string;
@@ -19,9 +19,6 @@ export function PixelSummary({ name, email, pixelTotal, pixelDelta, rank }: Prop
         <div className="relative flex flex-col gap-4">
           <div className="flex flex-col justify-between gap-3 sm:flex-row sm:items-center">
             <div className="flex items-center gap-3">
-              <div className="flex h-12 w-12 items-center justify-center rounded-full bg-primary/10 ring-1 ring-primary/20">
-                <Image src="/images/h4i.png" alt="Hack4Impact" width={28} height={28} className="h-7 w-7" priority />
-              </div>
               <div>
                 <div className="text-[0.7rem] font-semibold uppercase tracking-[0.08em] text-primary">
                   Welcome back

@@ -6,7 +6,6 @@ import { AdminLayout } from "@/components/admin/AdminLayout";
 import { Controller, useForm } from "react-hook-form";
 import { z } from "zod";
 import { zodResolver } from "@hookform/resolvers/zod";
-import Image from "next/image";
 import { Button } from "@/components/ui/button";
 import {
   Table,
@@ -454,7 +453,6 @@ export default function AdminPage() {
         <div className="flex flex-col gap-6 pb-10">
           <div className="flex flex-col gap-3">
             <div className="inline-flex items-center gap-2 rounded-full bg-primary/10 px-3 py-1 text-xs font-semibold text-primary ring-1 ring-primary/15">
-              <Image src="/images/h4i.png" alt="Hack4Impact" width={20} height={20} className="h-5 w-5" priority />
               Admin workspace
             </div>
             <h1 className="text-3xl font-bold text-foreground">Admin Dashboard</h1>
