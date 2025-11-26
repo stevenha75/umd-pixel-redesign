@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import Image from "next/image";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useAuth } from "@/context/AuthContext";
 import { Button } from "@/components/ui/button";
 import {
@@ -14,13 +14,43 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { doc, getDoc } from "firebase/firestore";
+import { db } from "@/lib/firebase";
 
 export default function Navbar() {
   const { user, isAdmin, signOut } = useAuth();
   const [open, setOpen] = useState(false);
+  const [profileName, setProfileName] = useState<string | null>(null);
+
+  useEffect(() => {
+    let cancelled = false;
+    const fetchName = async () => {
+      if (!user?.uid) {
+        setProfileName(null);
+        return;
+      }
+      try {
+        const snap = await getDoc(doc(db, "users", user.uid));
+        if (!cancelled) {
+          const data = snap.data() || {};
+          const name = `${data.firstName || ""} ${data.lastName || ""}`.trim();
+          setProfileName(name || null);
+        }
+      } catch (err) {
+        console.error("Failed to load profile name", err);
+        if (!cancelled) setProfileName(null);
+      }
+    };
+    fetchName();
+    return () => {
+      cancelled = true;
+    };
+  }, [user?.uid]);
+
+  const name = profileName || user?.displayName || "User";
   const initials =
-    user?.displayName
-      ?.split(" ")
+    name
+      .split(" ")
       .map((p) => p[0])
       .join("") || "U";
 
@@ -50,7 +80,7 @@ export default function Navbar() {
                     <AvatarImage src={user.photoURL || ""} alt={user.displayName || ""} />
                     <AvatarFallback>{initials}</AvatarFallback>
                   </Avatar>
-                  <span className="text-sm">{user.displayName || "User"}</span>
+                  <span className="text-sm">{name}</span>
                 </Button>
               </DropdownMenuTrigger>
               <DropdownMenuContent align="end">
