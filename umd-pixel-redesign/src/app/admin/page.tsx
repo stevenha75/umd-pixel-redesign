@@ -458,7 +458,7 @@ export default function AdminPage() {
             </div>
             <h1 className="text-3xl font-bold text-foreground">Admin Dashboard</h1>
             <p className="text-sm text-muted-foreground">
-              Manage events, pixels, and attendance. Mirrors legacy admin flows with a calmer UI.
+              Manage events, pixels, and attendance. 
             </p>
           </div>
 
@@ -715,7 +715,7 @@ export default function AdminPage() {
             <CardHeader className="flex items-center justify-between">
               <div>
                 <CardTitle>Excused Absences</CardTitle>
-                <CardDescription>Approve or reject requests; matches legacy behavior.</CardDescription>
+                <CardDescription>Approve or reject requests</CardDescription>
               </div>
               <span className="text-sm text-muted-foreground">
                 {excused.filter((r) => r.status === "pending").length} pending

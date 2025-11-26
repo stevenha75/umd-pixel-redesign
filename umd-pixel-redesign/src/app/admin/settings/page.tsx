@@ -85,7 +85,6 @@ export default function SettingsPage() {
           <Card>
             <CardHeader>
               <CardTitle>Semester & Leaderboard</CardTitle>
-              <CardDescription>Aligns with legacy admin settings.</CardDescription>
             </CardHeader>
             <CardContent className="space-y-4">
               <div className="flex flex-col gap-2">

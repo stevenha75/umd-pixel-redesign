@@ -22,11 +22,8 @@ export interface UserDocument {
   lastName: string;
   email: string;
   slackId?: string;
-  slackEmail?: string; // Legacy field
   isAdmin?: boolean;
-  pixels?: number; // Legacy field name
   pixelDelta?: number;
-  pixeldelta?: number; // Legacy casing
   pixelCached?: number;
   createdAt?: Timestamp;
   lastLogin?: Timestamp;
