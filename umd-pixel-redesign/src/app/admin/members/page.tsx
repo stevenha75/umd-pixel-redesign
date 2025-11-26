@@ -27,6 +27,8 @@ import {
   fetchSlackUsers,
   addSlackMember,
   SlackUser,
+  setPixelDelta,
+  recalculateUserPixels,
 } from "@/lib/api";
 import {
     Dialog,
@@ -46,6 +48,7 @@ export default function MembersPage() {
   const [editing, setEditing] = useState<MemberRecord | null>(null);
   const [eventTarget, setEventTarget] = useState("");
   const [saving, setSaving] = useState(false);
+  const [pixelDeltaInput, setPixelDeltaInput] = useState<string>("");
 
   // Slack State
   const [slackOpen, setSlackOpen] = useState(false);
@@ -72,6 +75,15 @@ export default function MembersPage() {
     });
     return filtered;
   }, [membersQuery.data, search, sort]);
+
+  useEffect(() => {
+    const current = members.find((m) => m.id === editing?.id);
+    setPixelDeltaInput(
+      current?.pixelDelta === undefined || current?.pixelDelta === null
+        ? ""
+        : String(current.pixelDelta)
+    );
+  }, [editing, members]);
 
   const toggleSelect = (id: string) => {
     setSelected((prev) => {
@@ -141,6 +153,25 @@ export default function MembersPage() {
       } finally {
           setSaving(false);
       }
+  };
+
+  const handleSavePixelDelta = async () => {
+    if (!selectedMember) return;
+    setSaving(true);
+    try {
+      const value = pixelDeltaInput.trim() === "" ? 0 : Number(pixelDeltaInput);
+      const semesterId = adminQuery.data?.currentSemesterId || null;
+      await setPixelDelta(selectedMember.id, value, semesterId);
+      await recalculateUserPixels(selectedMember.id);
+      await membersQuery.refetch();
+      await adminQuery.refetch();
+      setMessage("Pixel adjustment saved.");
+    } catch (err) {
+      console.error(err);
+      setMessage("Failed to save adjustment.");
+    } finally {
+      setSaving(false);
+    }
   };
 
   const loadSlackUsers = useCallback(async () => {
@@ -491,12 +522,26 @@ export default function MembersPage() {
                         setEditing((prev) => prev && { ...prev, email: e.target.value })
                       }
                     />
-                    <div className="text-sm text-muted-foreground">
-                      Pixels: {selectedMember.pixels} (Delta {selectedMember.pixelDelta})
+                    <div className="flex flex-col gap-3">
+                      <div className="text-sm text-muted-foreground">
+                        Pixels: {selectedMember.pixels} (Delta {selectedMember.pixelDelta})
+                      </div>
+                      <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:gap-3">
+                        <Input
+                          type="number"
+                          value={pixelDeltaInput}
+                          onChange={(e) => setPixelDeltaInput(e.target.value)}
+                          placeholder="Pixel adjustment"
+                          className="sm:w-44"
+                        />
+                        <Button onClick={handleSavePixelDelta} disabled={saving}>
+                          {saving ? "Saving…" : "Save adjustment"}
+                        </Button>
+                      </div>
+                      <Button onClick={handleUpdateMember} disabled={saving}>
+                        {saving ? "Saving…" : "Save changes"}
+                      </Button>
                     </div>
-                    <Button onClick={handleUpdateMember} disabled={saving}>
-                      {saving ? "Saving…" : "Save changes"}
-                    </Button>
                     {pixelHistory && (
                       <div className="rounded-lg border border-border p-3">
                         <Line

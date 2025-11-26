@@ -367,6 +367,28 @@ export async function setAdminByEmail(email: string, isAdmin: boolean) {
   return matches.size;
 }
 
+export async function setPixelDelta(
+  userId: string,
+  pixelDelta: number,
+  semesterId: string | null
+) {
+  const updates: Record<string, unknown> = {
+    pixelDelta,
+  };
+  if (semesterId) {
+    updates[`pixelDeltaBySemester.${semesterId}`] = pixelDelta;
+  }
+  await updateDoc(doc(db, "users", userId), updates);
+}
+
+export async function recalculateUserPixels(userId: string) {
+  const fn = httpsCallable<{ userId: string }, { success: boolean }>(
+    functions,
+    "recalculateUserPixelsCallable"
+  );
+  await fn({ userId });
+}
+
 export async function addAttendeesByEmail(eventId: string, emails: string[]) {
   const unique = Array.from(new Set(emails.map((e) => e.trim()).filter(Boolean)));
   const foundIds: string[] = [];

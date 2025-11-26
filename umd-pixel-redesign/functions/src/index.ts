@@ -464,3 +464,17 @@ export const recalculateAllUserPixels = functions
         
         return { success: true, count: usersSnap.size };
     });
+
+export const recalculateUserPixelsCallable = functions
+    .region("us-central1")
+    .https.onCall(async (data, context) => {
+        if (!context.auth?.token.isAdmin) {
+            throw new functions.https.HttpsError("permission-denied", "Must be an admin.");
+        }
+        const userId = (data as { userId?: string })?.userId;
+        if (!userId) {
+            throw new functions.https.HttpsError("invalid-argument", "Missing userId.");
+        }
+        await recalculateUserPixels(userId);
+        return { success: true };
+    });
