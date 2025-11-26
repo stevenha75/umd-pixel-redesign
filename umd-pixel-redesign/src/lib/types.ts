@@ -22,9 +22,12 @@ export interface UserDocument {
   lastName: string;
   email: string;
   slackId?: string;
+  slackEmail?: string; // Legacy field
   isAdmin?: boolean;
-  pixelDelta?: number;
-  pixelCached?: number;
+  pixelDelta?: number; // Canonical field
+  pixeldelta?: number; // Legacy casing
+  pixels?: number; // Legacy field name
+  pixelCached?: number; // Cached total
   createdAt?: Timestamp;
   lastLogin?: Timestamp;
 }
