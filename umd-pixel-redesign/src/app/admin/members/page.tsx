@@ -164,7 +164,6 @@ export default function MembersPage() {
       await setPixelDelta(selectedMember.id, value, semesterId);
       await recalculateUserPixels(selectedMember.id);
       await membersQuery.refetch();
-      await adminQuery.refetch();
       setMessage("Pixel adjustment saved.");
     } catch (err) {
       console.error(err);
@@ -535,12 +534,9 @@ export default function MembersPage() {
                           className="sm:w-44"
                         />
                         <Button onClick={handleSavePixelDelta} disabled={saving}>
-                          {saving ? "Saving…" : "Save adjustment"}
+                          {saving ? "Saving…" : "Save"}
                         </Button>
                       </div>
-                      <Button onClick={handleUpdateMember} disabled={saving}>
-                        {saving ? "Saving…" : "Save changes"}
-                      </Button>
                     </div>
                     {pixelHistory && (
                       <div className="rounded-lg border border-border p-3">
