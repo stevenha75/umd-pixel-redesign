@@ -30,7 +30,7 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
             setUser(user);
             if (user) {
                 try {
-                    const tokenResult = await getIdTokenResult(user, true);
+                    const tokenResult = await getIdTokenResult(user);
                     setIsAdmin(!!tokenResult.claims.isAdmin);
                 } catch (err) {
                     console.error("Failed to load token claims", err);
