@@ -414,7 +414,7 @@ export default function MembersPage() {
             </CardContent>
           </Card>
 
-          <div className="grid gap-6 md:grid-cols-2">
+          <div className="grid gap-6 md:grid-cols-2 items-start">
             <Card>
               <CardHeader>
                 <CardTitle>Add Member</CardTitle>
