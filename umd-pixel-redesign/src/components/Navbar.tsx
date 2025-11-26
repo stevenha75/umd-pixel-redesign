@@ -57,7 +57,7 @@ export default function Navbar() {
   return (
     <nav className="sticky top-0 z-30 border-b border-primary/10 bg-white/80 backdrop-blur supports-[backdrop-filter]:bg-white/70">
       <div className="mx-auto flex max-w-6xl items-center justify-between px-4 py-3">
-        <div className="flex items-center gap-3">
+        <Link href="/" className="flex items-center gap-3">
           <div className="flex h-10 w-10 items-center justify-center rounded-full bg-primary/10 ring-1 ring-primary/20">
             <Image src="/images/h4i.png" alt="Hack4Impact" width={28} height={28} className="h-7 w-7" priority />
           </div>
@@ -65,7 +65,7 @@ export default function Navbar() {
             <span className="text-xs font-semibold uppercase tracking-wide text-primary">Hack4Impact UMD</span>
             <span className="text-sm font-semibold text-foreground">Pixels</span>
           </div>
-        </div>
+        </Link>
         <div className="hidden items-center gap-3 text-sm sm:flex">
           {isAdmin && (
             <Button asChild variant="outline">

@@ -11,6 +11,7 @@ import { DashboardData, fetchDashboardData } from "@/lib/dashboard";
 import { useQuery } from "@tanstack/react-query";
 import { Button } from "@/components/ui/button";
 import { LoadingState } from "@/components/LoadingState";
+import Image from "next/image";
 
 export default function Home() {
   const { user } = useAuth();
