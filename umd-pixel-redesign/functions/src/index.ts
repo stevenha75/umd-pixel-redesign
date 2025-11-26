@@ -112,6 +112,9 @@ export const authWithSlack = functions
             });
         } else {
             // Case 2: Check if user exists by email (Manual creation migration)
+            // NOTE: This only catches cases where the email MATCHES EXACTLY.
+            // If admin made a typo, this won't find it, creating a duplicate.
+            // The admin will then need to use the "Merge Users" tool.
             const existingUserQuery = await admin.firestore().collection("users")
                 .where("email", "==", email)
                 .limit(1)
@@ -190,6 +193,108 @@ export const authWithSlack = functions
         throw new functions.https.HttpsError("internal", message);
     }
 });
+
+/**
+ * Callable: mergeUsers
+ * Merges two user accounts. Useful when an admin manually adds a user with the wrong email,
+ * and then the user logs in with Slack creating a second account.
+ */
+export const mergeUsers = functions
+    .region("us-central1")
+    .https.onCall(async (data, context) => {
+        if (!context.auth?.token.isAdmin) {
+            throw new functions.https.HttpsError("permission-denied", "Must be an admin.");
+        }
+
+        const { sourceUserId, targetUserId } = data;
+        if (!sourceUserId || !targetUserId) {
+            throw new functions.https.HttpsError("invalid-argument", "Missing user IDs.");
+        }
+
+        const db = admin.firestore();
+
+        // 1. Get Users & Merge User Doc
+        const sourceRef = db.collection("users").doc(sourceUserId);
+        const targetRef = db.collection("users").doc(targetUserId);
+
+        await db.runTransaction(async (t) => {
+            const sourceDoc = await t.get(sourceRef);
+            const targetDoc = await t.get(targetRef);
+
+            if (!sourceDoc.exists || !targetDoc.exists) {
+                throw new functions.https.HttpsError("not-found", "User not found.");
+            }
+
+            const sourceData = sourceDoc.data();
+            const targetData = targetDoc.data();
+
+            const newPixelDelta = (targetData?.pixelDelta || 0) + (sourceData?.pixelDelta || 0);
+
+            t.update(targetRef, {
+                pixelDelta: newPixelDelta,
+            });
+
+            t.delete(sourceRef);
+        });
+
+        // 2. Migrate Events (Attendees)
+        const eventsSnap = await db.collection("events")
+            .where("attendees", "array-contains", sourceUserId)
+            .get();
+        
+        const eventUpdates = eventsSnap.docs.map(async (doc) => {
+            await doc.ref.update({
+                attendees: admin.firestore.FieldValue.arrayRemove(sourceUserId)
+            });
+            await doc.ref.update({
+                attendees: admin.firestore.FieldValue.arrayUnion(targetUserId)
+            });
+        });
+        await Promise.all(eventUpdates);
+
+        // 3. Migrate Excused Absences
+        const excusedSnap = await db.collectionGroup("excused_absences")
+            .where("userId", "==", sourceUserId)
+            .get();
+        
+        for (const doc of excusedSnap.docs) {
+            const parentRef = doc.ref.parent; 
+            const targetExcuse = await parentRef.where("userId", "==", targetUserId).get();
+            
+            if (targetExcuse.empty) {
+                await doc.ref.update({ userId: targetUserId });
+            } else {
+                await doc.ref.delete();
+            }
+        }
+
+        // 4. Migrate Activities (Multipliers)
+        const activitiesSnap = await db.collection("activities").get();
+        const activityUpdates = [];
+        
+        for (const doc of activitiesSnap.docs) {
+            const data = doc.data();
+            if (data.multipliers && data.multipliers[sourceUserId]) {
+                const val = data.multipliers[sourceUserId];
+                
+                const update: { [key: string]: any } = {
+                    [`multipliers.${sourceUserId}`]: admin.firestore.FieldValue.delete()
+                };
+
+                if (!data.multipliers[targetUserId]) {
+                    update[`multipliers.${targetUserId}`] = val;
+                }
+                
+                activityUpdates.push(doc.ref.update(update));
+            }
+        }
+        await Promise.all(activityUpdates);
+
+        // 5. Recalculate Target Pixels
+        await recalculateUserPixels(targetUserId);
+
+        return { success: true };
+    });
 
 /**
  * Trigger: onEventUpdate
