@@ -4,6 +4,7 @@ import Link from "next/link";
 import Image from "next/image";
 import { useEffect, useState } from "react";
 import { useAuth } from "@/context/AuthContext";
+import { usePathname } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import {
   DropdownMenu,
@@ -19,6 +20,7 @@ import { db } from "@/lib/firebase";
 
 export default function Navbar() {
   const { user, isAdmin, signOut } = useAuth();
+  const pathname = usePathname();
   const [open, setOpen] = useState(false);
   const [profileName, setProfileName] = useState<string | null>(null);
 
@@ -69,7 +71,9 @@ export default function Navbar() {
         <div className="hidden items-center gap-3 text-sm sm:flex">
           {isAdmin && (
             <Button asChild variant="outline">
-              <Link href="/admin">Admin</Link>
+              <Link href={pathname?.startsWith("/admin") ? "/" : "/admin"}>
+                {pathname?.startsWith("/admin") ? "Dashboard" : "Admin"}
+              </Link>
             </Button>
           )}
           {user ? (
@@ -116,7 +120,9 @@ export default function Navbar() {
                 className="justify-start"
                 onClick={() => setOpen(false)}
               >
-                <Link href="/admin">Admin</Link>
+                <Link href={pathname?.startsWith("/admin") ? "/" : "/admin"}>
+                  {pathname?.startsWith("/admin") ? "Dashboard" : "Admin"}
+                </Link>
               </Button>
             )}
             {user ? (
