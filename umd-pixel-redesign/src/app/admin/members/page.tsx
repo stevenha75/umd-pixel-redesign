@@ -19,7 +19,6 @@ import { useQuery } from "@tanstack/react-query";
 import {
   MemberRecord,
   fetchMembers,
-  addMember,
   updateMember,
   deleteMember,
   fetchAdminData,
@@ -45,7 +44,6 @@ export default function MembersPage() {
   const [search, setSearch] = useState("");
   const [sort, setSort] = useState<"pixels" | "name">("pixels");
   const [editing, setEditing] = useState<MemberRecord | null>(null);
-  const [newMember, setNewMember] = useState({ firstName: "", lastName: "", email: "" });
   const [eventTarget, setEventTarget] = useState("");
   const [saving, setSaving] = useState(false);
 
@@ -92,22 +90,6 @@ export default function MembersPage() {
   };
 
   const clearSelection = () => setSelected(new Set());
-
-  const handleAddMember = async () => {
-    if (!newMember.firstName.trim() || !newMember.email.trim()) return;
-    setSaving(true);
-    try {
-      await addMember({
-        firstName: newMember.firstName.trim(),
-        lastName: newMember.lastName.trim(),
-        email: newMember.email.trim().toLowerCase(),
-      });
-      await membersQuery.refetch();
-      setNewMember({ firstName: "", lastName: "", email: "" });
-    } finally {
-      setSaving(false);
-    }
-  };
 
   const handleUpdateMember = async () => {
     if (!editing) return;
