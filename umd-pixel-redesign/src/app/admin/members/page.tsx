@@ -479,34 +479,6 @@ export default function MembersPage() {
                           </div>
                       </DialogContent>
                   </Dialog>
-                  
-                  <div className="relative py-2">
-                    <div className="absolute inset-0 flex items-center">
-                      <span className="w-full border-t" />
-                    </div>
-                    <div className="relative flex justify-center text-xs uppercase">
-                      <span className="bg-background px-2 text-muted-foreground">Or add manually</span>
-                    </div>
-                  </div>
-
-                <Input
-                  placeholder="First name"
-                  value={newMember.firstName}
-                  onChange={(e) => setNewMember((p) => ({ ...p, firstName: e.target.value }))}
-                />
-                <Input
-                  placeholder="Last name"
-                  value={newMember.lastName}
-                  onChange={(e) => setNewMember((p) => ({ ...p, lastName: e.target.value }))}
-                />
-                <Input
-                  placeholder="Email"
-                  value={newMember.email}
-                  onChange={(e) => setNewMember((p) => ({ ...p, email: e.target.value }))}
-                />
-                <Button onClick={handleAddMember} disabled={saving} variant="secondary" className="w-full">
-                  {saving ? "Saving…" : "Add manually"}
-                </Button>
               </CardContent>
             </Card>
 
