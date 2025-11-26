@@ -8,7 +8,8 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Checkbox } from "@/components/ui/checkbox";
 import { doc, getDoc, setDoc } from "firebase/firestore";
-import { db } from "@/lib/firebase";
+import { httpsCallable } from "firebase/functions";
+import { db, functions } from "@/lib/firebase";
 import { useQuery } from "@tanstack/react-query";
 import { setAdminFlag } from "@/lib/api";
 import { CardFooter } from "@/components/ui/card";
@@ -71,6 +72,22 @@ export default function SettingsPage() {
     }
   };
 
+  const handleRecalculate = async () => {
+    if (!confirm("This will recalculate pixel totals for ALL users based on the current semester. Continue?")) return;
+    setSaving(true);
+    try {
+      const recalculateFn = httpsCallable(functions, "recalculateAllUserPixels");
+      const result = await recalculateFn();
+      const data = result.data as { count?: number };
+      toast.success(`Recalculation complete for ${data.count || "all"} users.`);
+    } catch (err) {
+      console.error(err);
+      toast.error("Failed to trigger recalculation.");
+    } finally {
+      setSaving(false);
+    }
+  };
+
   return (
     <ProtectedRoute requireAdmin>
       <AdminLayout>
@@ -108,6 +125,9 @@ export default function SettingsPage() {
               <div className="flex items-center gap-3">
                 <Button onClick={handleSave} disabled={saving || settingsQuery.isLoading}>
                   {saving ? "Saving…" : "Save settings"}
+                </Button>
+                <Button variant="secondary" onClick={handleRecalculate} disabled={saving}>
+                  Recalculate all scores
                 </Button>
               </div>
             </CardContent>

@@ -302,3 +302,27 @@ export const onActivityUpdate = functions
         }
         await Promise.all(Array.from(userIds).map((uid) => recalculateUserPixels(uid)));
     });
+
+/**
+ * Callable: recalculateAllUserPixels
+ * Manually triggers a recalculation of pixels for ALL users.
+ * Useful when changing semesters.
+ */
+export const recalculateAllUserPixels = functions
+    .region("us-central1")
+    .https.onCall(async (data, context) => {
+        // Optional: Check for admin auth if context.auth is available
+        // if (!context.auth?.token.isAdmin) {
+        //   throw new functions.https.HttpsError("permission-denied", "Must be an admin.");
+        // }
+
+        const db = admin.firestore();
+        const usersSnap = await db.collection("users").get();
+        
+        console.log(`Recalculating pixels for ${usersSnap.size} users...`);
+        
+        const promises = usersSnap.docs.map(doc => recalculateUserPixels(doc.id));
+        await Promise.all(promises);
+        
+        return { success: true, count: usersSnap.size };
+    });
