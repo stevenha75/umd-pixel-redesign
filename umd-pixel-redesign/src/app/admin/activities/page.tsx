@@ -21,9 +21,16 @@ import {
   findUserIdByEmail,
   fetchUserDetails,
 } from "@/lib/api";
+import { useAuth } from "@/context/AuthContext";
 
 export default function ActivitiesPage() {
-  const adminQuery = useQuery({ queryKey: ["admin-data"], queryFn: fetchAdminData });
+  const { user } = useAuth();
+
+  const adminQuery = useQuery({
+    queryKey: ["admin-data", user?.uid],
+    queryFn: fetchAdminData,
+    enabled: !!user,
+  });
   const activitiesQuery = useQuery<ActivityRecord[]>({
     queryKey: ["activities"],
     queryFn: async () => {

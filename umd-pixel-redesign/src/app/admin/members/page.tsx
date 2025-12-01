@@ -13,6 +13,7 @@ import { Line } from "react-chartjs-2";
 import { Chart as ChartJS, LineElement, PointElement, LinearScale, CategoryScale, Tooltip, Legend } from "chart.js";
 import { CsvExportButton } from "@/components/export/CsvExportButton";
 import { LoadingState } from "@/components/LoadingState";
+import { useAuth } from "@/context/AuthContext";
 
 ChartJS.register(LineElement, PointElement, LinearScale, CategoryScale, Tooltip, Legend);
 import { useQuery } from "@tanstack/react-query";
@@ -41,6 +42,7 @@ import { Badge } from "@/components/ui/badge";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 
 export default function MembersPage() {
+  const { user } = useAuth();
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const [search, setSearch] = useState("");
   const [sort, setSort] = useState<"pixels" | "name">("pixels");
@@ -56,7 +58,11 @@ export default function MembersPage() {
   const [loadingSlack, setLoadingSlack] = useState(false);
 
   const membersQuery = useQuery<MemberRecord[]>({ queryKey: ["members"], queryFn: fetchMembers });
-  const adminQuery = useQuery({ queryKey: ["admin-data"], queryFn: fetchAdminData });
+  const adminQuery = useQuery({
+    queryKey: ["admin-data", user?.uid],
+    queryFn: fetchAdminData,
+    enabled: !!user,
+  });
 
   const members = useMemo(() => {
     const data = membersQuery.data || [];

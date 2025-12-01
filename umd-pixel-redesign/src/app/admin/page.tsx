@@ -43,6 +43,7 @@ import {
 import { useQuery } from "@tanstack/react-query";
 import { Textarea } from "@/components/ui/textarea";
 import { Checkbox } from "@/components/ui/checkbox";
+import { useAuth } from "@/context/AuthContext";
 
 type EventRow = {
   id: string;
@@ -77,6 +78,7 @@ const defaultEvent = {
 };
 
 export default function AdminPage() {
+  const { user } = useAuth();
   const [events, setEvents] = useState<EventRow[]>([]);
   const [excused, setExcused] = useState<ExcusedRow[]>([]);
   const [loading, setLoading] = useState(true);
@@ -119,9 +121,10 @@ export default function AdminPage() {
   });
 
   const adminQuery = useQuery<AdminData>({
-    queryKey: ["admin-data"],
+    queryKey: ["admin-data", user?.uid],
     queryFn: fetchAdminData,
     staleTime: 60_000,
+    enabled: !!user,
   });
 
   useEffect(() => {
