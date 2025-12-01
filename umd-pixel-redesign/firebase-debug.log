@@ -1,0 +1,75 @@
+[debug] [2025-12-01T17:22:12.837Z] ----------------------------------------------------------------------
+[debug] [2025-12-01T17:22:12.838Z] Command:       /opt/homebrew/Cellar/node@20/20.19.2/bin/node /opt/homebrew/bin/firebase deploy
+[debug] [2025-12-01T17:22:12.838Z] CLI Version:   14.1.0
+[debug] [2025-12-01T17:22:12.838Z] Platform:      darwin
+[debug] [2025-12-01T17:22:12.838Z] Node Version:  v20.19.2
+[debug] [2025-12-01T17:22:12.838Z] Time:          Mon Dec 01 2025 12:22:12 GMT-0500 (Eastern Standard Time)
+[debug] [2025-12-01T17:22:12.838Z] ----------------------------------------------------------------------
+[debug] 
+[debug] [2025-12-01T17:22:12.925Z] > command requires scopes: ["email","openid","https://www.googleapis.com/auth/cloudplatformprojects.readonly","https://www.googleapis.com/auth/firebase","https://www.googleapis.com/auth/cloud-platform"]
+[debug] [2025-12-01T17:22:12.925Z] > authorizing via signed-in user (sha12@terpmail.umd.edu)
+[debug] [2025-12-01T17:22:12.925Z] [iam] checking project umd-pixels for permissions ["cloudfunctions.functions.create","cloudfunctions.functions.delete","cloudfunctions.functions.get","cloudfunctions.functions.list","cloudfunctions.functions.update","cloudfunctions.operations.get","datastore.indexes.create","datastore.indexes.delete","datastore.indexes.list","datastore.indexes.update","firebase.projects.get","firebasehosting.sites.update"]
+[debug] [2025-12-01T17:22:12.926Z] Checked if tokens are valid: false, expires at: 1764608754680
+[debug] [2025-12-01T17:22:12.926Z] Checked if tokens are valid: false, expires at: 1764608754680
+[debug] [2025-12-01T17:22:12.926Z] > refreshing access token with scopes: []
+[debug] [2025-12-01T17:22:12.927Z] >>> [apiv2][query] POST https://www.googleapis.com/oauth2/v3/token [none]
+[debug] [2025-12-01T17:22:12.927Z] >>> [apiv2][body] POST https://www.googleapis.com/oauth2/v3/token [omitted]
+[debug] [2025-12-01T17:22:13.183Z] <<< [apiv2][status] POST https://www.googleapis.com/oauth2/v3/token 200
+[debug] [2025-12-01T17:22:13.183Z] <<< [apiv2][body] POST https://www.googleapis.com/oauth2/v3/token [omitted]
+[debug] [2025-12-01T17:22:13.197Z] >>> [apiv2][query] POST https://cloudresourcemanager.googleapis.com/v1/projects/umd-pixels:testIamPermissions [none]
+[debug] [2025-12-01T17:22:13.197Z] >>> [apiv2][(partial)header] POST https://cloudresourcemanager.googleapis.com/v1/projects/umd-pixels:testIamPermissions x-goog-quota-user=projects/umd-pixels
+[debug] [2025-12-01T17:22:13.197Z] >>> [apiv2][body] POST https://cloudresourcemanager.googleapis.com/v1/projects/umd-pixels:testIamPermissions {"permissions":["cloudfunctions.functions.create","cloudfunctions.functions.delete","cloudfunctions.functions.get","cloudfunctions.functions.list","cloudfunctions.functions.update","cloudfunctions.operations.get","datastore.indexes.create","datastore.indexes.delete","datastore.indexes.list","datastore.indexes.update","firebase.projects.get","firebasehosting.sites.update"]}
+[debug] [2025-12-01T17:22:13.667Z] <<< [apiv2][status] POST https://cloudresourcemanager.googleapis.com/v1/projects/umd-pixels:testIamPermissions 200
+[debug] [2025-12-01T17:22:13.667Z] <<< [apiv2][body] POST https://cloudresourcemanager.googleapis.com/v1/projects/umd-pixels:testIamPermissions {"permissions":["cloudfunctions.functions.create","cloudfunctions.functions.delete","cloudfunctions.functions.get","cloudfunctions.functions.list","cloudfunctions.functions.update","cloudfunctions.operations.get","datastore.indexes.create","datastore.indexes.delete","datastore.indexes.list","datastore.indexes.update","firebase.projects.get","firebasehosting.sites.update"]}
+[debug] [2025-12-01T17:22:13.667Z] Checked if tokens are valid: true, expires at: 1764613332183
+[debug] [2025-12-01T17:22:13.667Z] Checked if tokens are valid: true, expires at: 1764613332183
+[debug] [2025-12-01T17:22:13.667Z] >>> [apiv2][query] POST https://iam.googleapis.com/v1/projects/umd-pixels/serviceAccounts/umd-pixels@appspot.gserviceaccount.com:testIamPermissions [none]
+[debug] [2025-12-01T17:22:13.668Z] >>> [apiv2][body] POST https://iam.googleapis.com/v1/projects/umd-pixels/serviceAccounts/umd-pixels@appspot.gserviceaccount.com:testIamPermissions {"permissions":["iam.serviceAccounts.actAs"]}
+[debug] [2025-12-01T17:22:13.972Z] <<< [apiv2][status] POST https://iam.googleapis.com/v1/projects/umd-pixels/serviceAccounts/umd-pixels@appspot.gserviceaccount.com:testIamPermissions 200
+[debug] [2025-12-01T17:22:13.972Z] <<< [apiv2][body] POST https://iam.googleapis.com/v1/projects/umd-pixels/serviceAccounts/umd-pixels@appspot.gserviceaccount.com:testIamPermissions {"permissions":["iam.serviceAccounts.actAs"]}
+[debug] [2025-12-01T17:22:13.972Z] Checked if tokens are valid: true, expires at: 1764613332183
+[debug] [2025-12-01T17:22:13.972Z] Checked if tokens are valid: true, expires at: 1764613332183
+[debug] [2025-12-01T17:22:13.973Z] >>> [apiv2][query] GET https://firebase.googleapis.com/v1beta1/projects/umd-pixels [none]
+[debug] [2025-12-01T17:22:14.318Z] <<< [apiv2][status] GET https://firebase.googleapis.com/v1beta1/projects/umd-pixels 200
+[debug] [2025-12-01T17:22:14.318Z] <<< [apiv2][body] GET https://firebase.googleapis.com/v1beta1/projects/umd-pixels {"projectId":"umd-pixels","projectNumber":"33728542418","displayName":"umd-pixels","name":"projects/umd-pixels","resources":{"hostingSite":"umd-pixels"},"state":"ACTIVE","etag":"1_e86cb27b-b830-4e16-9c01-e1469099a0bd"}
+[debug] [2025-12-01T17:22:14.936Z] Checked if tokens are valid: true, expires at: 1764613332183
+[debug] [2025-12-01T17:22:14.936Z] Checked if tokens are valid: true, expires at: 1764613332183
+[debug] [2025-12-01T17:22:14.936Z] >>> [apiv2][query] GET https://firebasehosting.googleapis.com/v1beta1/projects/umd-pixels/sites pageToken=&pageSize=10
+[debug] [2025-12-01T17:22:15.621Z] <<< [apiv2][status] GET https://firebasehosting.googleapis.com/v1beta1/projects/umd-pixels/sites 200
+[debug] [2025-12-01T17:22:15.621Z] <<< [apiv2][body] GET https://firebasehosting.googleapis.com/v1beta1/projects/umd-pixels/sites {"sites":[{"name":"projects/umd-pixels/sites/umd-pixels","defaultUrl":"https://umd-pixels.web.app","appId":"1:33728542418:web:59c259b489e7f471919f0b","type":"DEFAULT_SITE"}]}
+[debug] [2025-12-01T17:22:15.621Z] Checked if tokens are valid: true, expires at: 1764613332183
+[debug] [2025-12-01T17:22:15.621Z] Checked if tokens are valid: true, expires at: 1764613332183
+[debug] [2025-12-01T17:22:15.621Z] >>> [apiv2][query] GET https://firebase.googleapis.com/v1beta1/projects/-/webApps/1:33728542418:web:59c259b489e7f471919f0b/config [none]
+[debug] [2025-12-01T17:22:15.931Z] <<< [apiv2][status] GET https://firebase.googleapis.com/v1beta1/projects/-/webApps/1:33728542418:web:59c259b489e7f471919f0b/config 200
+[debug] [2025-12-01T17:22:15.931Z] <<< [apiv2][body] GET https://firebase.googleapis.com/v1beta1/projects/-/webApps/1:33728542418:web:59c259b489e7f471919f0b/config {"projectId":"umd-pixels","appId":"1:33728542418:web:59c259b489e7f471919f0b","storageBucket":"umd-pixels.firebasestorage.app","apiKey":"AIzaSyAZZR53xZtsQKFRzyHsu3BBKTtRRYAN4QI","authDomain":"umd-pixels.firebaseapp.com","messagingSenderId":"33728542418","measurementId":"G-3P821HDWMH","projectNumber":"33728542418","version":"2"}
+[info] 
+   Thank you for trying our early preview of Next.js support on Firebase Hosting.
+   During the preview, support is best-effort and breaking changes can be expected. Proceed with caution.
+   The integration is known to work with Next.js version 12 - 15.0. You may encounter errors.
+
+   Documentation: https://firebase.google.com/docs/hosting/frameworks/nextjs
+   File a bug: https://github.com/firebase/firebase-tools/issues/new?template=bug_report.md
+   Submit a feature request: https://github.com/firebase/firebase-tools/issues/new?template=feature_request.md
+
+   We'd love to learn from you. Express your interest in helping us shape the future of Firebase Hosting: https://goo.gle/41enW5X
+
+[debug] [2025-12-01T17:22:17.231Z] Checked if tokens are valid: true, expires at: 1764613332183
+[debug] [2025-12-01T17:22:17.231Z] Checked if tokens are valid: true, expires at: 1764613332183
+[debug] [2025-12-01T17:22:17.231Z] >>> [apiv2][query] GET https://firebasehosting.googleapis.com/v1beta1/projects/umd-pixels/sites/umd-pixels [none]
+[debug] [2025-12-01T17:22:17.413Z] <<< [apiv2][status] GET https://firebasehosting.googleapis.com/v1beta1/projects/umd-pixels/sites/umd-pixels 200
+[debug] [2025-12-01T17:22:17.413Z] <<< [apiv2][body] GET https://firebasehosting.googleapis.com/v1beta1/projects/umd-pixels/sites/umd-pixels {"name":"projects/umd-pixels/sites/umd-pixels","defaultUrl":"https://umd-pixels.web.app","appId":"1:33728542418:web:59c259b489e7f471919f0b","type":"DEFAULT_SITE"}
+[info] [baseline-browser-mapping] The data in this module is over two months old.  To ensure accurate Baseline data, please update: `npm i baseline-browser-mapping@latest -D`
+
+[info]    ▲ Next.js 16.0.3 (Turbopack)
+
+[info]    - Environments: .env.local, .env.production
+
+
+[info]    Creating an optimized production build ...
+
+[info] [baseline-browser-mapping] The data in this module is over two months old.  To ensure accurate Baseline data, please update: `npm i baseline-browser-mapping@latest -D`
+
+[info]  ✓ Compiled successfully in 1548.0ms
+
+[info]    Running TypeScript ...
+

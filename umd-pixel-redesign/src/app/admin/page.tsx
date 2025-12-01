@@ -91,6 +91,7 @@ export default function AdminPage() {
   const [attendeeInput, setAttendeeInput] = useState("");
   const [attendeeEmails, setAttendeeEmails] = useState("");
   const [attendeeEventId, setAttendeeEventId] = useState<string | null>(null);
+  const [attendeeEventSearch, setAttendeeEventSearch] = useState("");
   const [eventSearch, setEventSearch] = useState("");
   const [selectedEvents, setSelectedEvents] = useState<Set<string>>(new Set());
   const [bulkPixels, setBulkPixels] = useState<number | "">("");
@@ -411,6 +412,20 @@ export default function AdminPage() {
       (evt) => evt.name.toLowerCase().includes(term) || evt.type.toLowerCase().includes(term)
     );
   }, [events, sortDir, sortKey, eventSearch]);
+  const EVENT_SUGGESTION_LIMIT = 8;
+  const attendeeEventSuggestions = useMemo(() => {
+    const term = attendeeEventSearch.trim().toLowerCase();
+    if (!term) return sortedEvents.slice(0, EVENT_SUGGESTION_LIMIT);
+    return sortedEvents
+      .filter((evt) => evt.name.toLowerCase().includes(term))
+      .slice(0, EVENT_SUGGESTION_LIMIT);
+  }, [attendeeEventSearch, sortedEvents]);
+
+  useEffect(() => {
+    if (!attendeeEventId) return;
+    const matched = sortedEvents.find((evt) => evt.id === attendeeEventId);
+    if (matched) setAttendeeEventSearch(matched.name);
+  }, [attendeeEventId, sortedEvents]);
 
   const toggleSort = (key: "date" | "name" | "pixels") => {
     if (sortKey === key) {
@@ -810,18 +825,38 @@ export default function AdminPage() {
                 </div>
                 <div className="flex flex-col gap-2 md:w-1/2">
                   <label className="text-sm text-muted-foreground">Event</label>
-                  <Select onValueChange={(v) => setAttendeeEventId(v)} value={attendeeEventId || ""}>
-                    <SelectTrigger>
-                      <SelectValue placeholder="Select event" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {sortedEvents.map((evt) => (
-                        <SelectItem key={evt.id} value={evt.id}>
-                          {evt.name}
-                        </SelectItem>
+                  <p className="text-xs text-muted-foreground">
+                    Type to search events (suggestions capped for large lists).
+                  </p>
+                  <Input
+                    value={attendeeEventSearch}
+                    onChange={(e) => {
+                      setAttendeeEventSearch(e.target.value);
+                      setAttendeeEventId(null);
+                    }}
+                    placeholder="Search events by name"
+                  />
+                  {attendeeEventSearch.trim().length > 0 && (
+                    <div className="rounded-md border bg-background shadow-sm">
+                      {attendeeEventSuggestions.map((evt) => (
+                        <button
+                          key={evt.id}
+                          className="w-full px-3 py-2 text-left hover:bg-muted"
+                          onClick={() => {
+                            setAttendeeEventId(evt.id);
+                            setAttendeeEventSearch(evt.name);
+                          }}
+                          type="button"
+                        >
+                          <div className="text-sm text-foreground">{evt.name}</div>
+                          <div className="text-xs text-muted-foreground">{evt.date}</div>
+                        </button>
                       ))}
-                    </SelectContent>
-                  </Select>
+                      {!attendeeEventSuggestions.length && (
+                        <div className="px-3 py-2 text-xs text-muted-foreground">No matches.</div>
+                      )}
+                    </div>
+                  )}
                 </div>
                 <div className="flex items-center gap-2">
                   <Button

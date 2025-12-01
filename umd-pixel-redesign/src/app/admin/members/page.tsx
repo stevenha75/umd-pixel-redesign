@@ -48,6 +48,7 @@ export default function MembersPage() {
   const [sort, setSort] = useState<"pixels" | "name">("pixels");
   const [editing, setEditing] = useState<MemberRecord | null>(null);
   const [eventTarget, setEventTarget] = useState("");
+  const [eventTargetSearch, setEventTargetSearch] = useState("");
   const [saving, setSaving] = useState(false);
   const [pixelDeltaInput, setPixelDeltaInput] = useState<string>("");
 
@@ -63,6 +64,21 @@ export default function MembersPage() {
     queryFn: fetchAdminData,
     enabled: !!user,
   });
+  const EVENT_SUGGESTION_LIMIT = 8;
+  const eventSuggestions = useMemo(() => {
+    const events = adminQuery.data?.events || [];
+    const term = eventTargetSearch.trim().toLowerCase();
+    if (!term) return events.slice(0, EVENT_SUGGESTION_LIMIT);
+    return events
+      .filter((evt) => evt.name.toLowerCase().includes(term))
+      .slice(0, EVENT_SUGGESTION_LIMIT);
+  }, [adminQuery.data?.events, eventTargetSearch]);
+
+  useEffect(() => {
+    if (!eventTarget) return;
+    const matched = (adminQuery.data?.events || []).find((evt) => evt.id === eventTarget);
+    if (matched) setEventTargetSearch(matched.name);
+  }, [eventTarget, adminQuery.data?.events]);
 
   const members = useMemo(() => {
     const data = membersQuery.data || [];
@@ -330,18 +346,40 @@ export default function MembersPage() {
                   Clear
                 </Button>
                 <span className="text-muted-foreground">{selected.size} selected</span>
-                <Select value={eventTarget} onValueChange={(v) => setEventTarget(v)}>
-                  <SelectTrigger className="w-48">
-                    <SelectValue placeholder="Add to event" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {adminQuery.data?.events.map((evt) => (
-                      <SelectItem key={evt.id} value={evt.id}>
-                        {evt.name}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
+                <div className="relative w-64">
+                  <p className="text-xs text-muted-foreground pb-1">
+                    Type to search events (suggestions capped).
+                  </p>
+                  <Input
+                    value={eventTargetSearch}
+                    onChange={(e) => {
+                      setEventTargetSearch(e.target.value);
+                      setEventTarget("");
+                    }}
+                    placeholder="Search events to add"
+                  />
+                  {eventTargetSearch.trim().length > 0 && (
+                    <div className="absolute z-10 mt-2 w-full rounded-md border bg-background shadow-sm">
+                      {eventSuggestions.map((evt) => (
+                        <button
+                          key={evt.id}
+                          className="w-full px-3 py-2 text-left hover:bg-muted"
+                          onClick={() => {
+                            setEventTarget(evt.id);
+                            setEventTargetSearch(evt.name);
+                          }}
+                          type="button"
+                        >
+                          <div className="text-sm text-foreground">{evt.name}</div>
+                          <div className="text-xs text-muted-foreground">{evt.date}</div>
+                        </button>
+                      ))}
+                      {!eventSuggestions.length && (
+                        <div className="px-3 py-2 text-xs text-muted-foreground">No matches.</div>
+                      )}
+                    </div>
+                  )}
+                </div>
                 <Button onClick={handleAddToEvent} disabled={saving || selected.size === 0 || !eventTarget}>
                   Add to event
                 </Button>

@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { ProtectedRoute } from "@/components/ProtectedRoute";
 import { AdminLayout } from "@/components/admin/AdminLayout";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -49,6 +49,7 @@ export default function ActivitiesPage() {
   const [loadingMoreActivities, setLoadingMoreActivities] = useState(false);
   const [multiplierDetails, setMultiplierDetails] = useState<Map<string, { name: string; email: string }>>(new Map());
   const hasMoreActivities = activityCursor !== null;
+  const ACTIVITY_SUGGESTION_LIMIT = 8;
 
   useEffect(() => {
     if (activitiesQuery.data) {
@@ -75,7 +76,21 @@ export default function ActivitiesPage() {
   const [multiplierUser, setMultiplierUser] = useState("");
   const [multiplierValue, setMultiplierValue] = useState(1);
   const [targetActivity, setTargetActivity] = useState<string | null>(null);
+  const [targetActivitySearch, setTargetActivitySearch] = useState("");
   const [saving, setSaving] = useState(false);
+  const activitySuggestions = useMemo(() => {
+    const term = targetActivitySearch.trim().toLowerCase();
+    if (!term) return activities.slice(0, ACTIVITY_SUGGESTION_LIMIT);
+    return activities
+      .filter((act) => act.name.toLowerCase().includes(term))
+      .slice(0, ACTIVITY_SUGGESTION_LIMIT);
+  }, [activities, targetActivitySearch]);
+
+  useEffect(() => {
+    if (!targetActivity) return;
+    const matched = activities.find((act) => act.id === targetActivity);
+    if (matched) setTargetActivitySearch(matched.name);
+  }, [targetActivity, activities]);
 
   const handleCreateOrUpdate = async () => {
     setSaving(true);
@@ -291,24 +306,41 @@ export default function ActivitiesPage() {
               <CardDescription>Set multiplier per member for an activity.</CardDescription>
             </CardHeader>
             <CardContent className="space-y-3">
-              <Select
-                value={targetActivity || ""}
-                onValueChange={async (v) => {
-                  setTargetActivity(v);
-                  await loadMultiplierDetails(v);
-                }}
-              >
-                <SelectTrigger className="w-64">
-                  <SelectValue placeholder="Select activity" />
-                </SelectTrigger>
-                <SelectContent>
-                  {activities.map((act) => (
-                    <SelectItem key={act.id} value={act.id}>
-                      {act.name}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+              <div className="relative w-64">
+                <p className="text-xs text-muted-foreground pb-1">
+                  Type to search activities (suggestions capped).
+                </p>
+                <Input
+                  value={targetActivitySearch}
+                  onChange={(e) => {
+                    setTargetActivitySearch(e.target.value);
+                    setTargetActivity(null);
+                  }}
+                  placeholder="Search activity"
+                />
+                {targetActivitySearch.trim().length > 0 && (
+                  <div className="absolute z-10 mt-2 w-full rounded-md border bg-background shadow-sm">
+                    {activitySuggestions.map((act) => (
+                      <button
+                        key={act.id}
+                        className="w-full px-3 py-2 text-left hover:bg-muted"
+                        onClick={async () => {
+                          setTargetActivity(act.id);
+                          setTargetActivitySearch(act.name);
+                          await loadMultiplierDetails(act.id);
+                        }}
+                        type="button"
+                      >
+                        <div className="text-sm text-foreground">{act.name}</div>
+                        <div className="text-xs text-muted-foreground">{act.type}</div>
+                      </button>
+                    ))}
+                    {!activitySuggestions.length && (
+                      <div className="px-3 py-2 text-xs text-muted-foreground">No matches.</div>
+                    )}
+                  </div>
+                )}
+              </div>
               <div className="grid gap-3 md:grid-cols-3">
                 <Input
                   placeholder="User ID"
