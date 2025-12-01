@@ -49,6 +49,7 @@ export default function MembersPage() {
   const [editing, setEditing] = useState<MemberRecord | null>(null);
   const [eventTarget, setEventTarget] = useState("");
   const [eventTargetSearch, setEventTargetSearch] = useState("");
+  const [memberPage, setMemberPage] = useState(0);
   const [saving, setSaving] = useState(false);
   const [pixelDeltaInput, setPixelDeltaInput] = useState<string>("");
 
@@ -73,6 +74,7 @@ export default function MembersPage() {
       .filter((evt) => evt.name.toLowerCase().includes(term))
       .slice(0, EVENT_SUGGESTION_LIMIT);
   }, [adminQuery.data?.events, eventTargetSearch]);
+  const MEMBERS_PAGE_SIZE = 25;
 
   useEffect(() => {
     if (!eventTarget) return;
@@ -96,6 +98,16 @@ export default function MembersPage() {
     });
     return filtered;
   }, [membersQuery.data, search, sort]);
+  const totalMemberPages = Math.max(1, Math.ceil(members.length / MEMBERS_PAGE_SIZE));
+  const currentMemberPage = Math.min(memberPage, totalMemberPages - 1);
+  const pagedMembers = useMemo(() => {
+    const start = currentMemberPage * MEMBERS_PAGE_SIZE;
+    return members.slice(start, start + MEMBERS_PAGE_SIZE);
+  }, [currentMemberPage, members]);
+
+  useEffect(() => {
+    setMemberPage(0);
+  }, [search, sort, members.length]);
 
   useEffect(() => {
     const current = members.find((m) => m.id === editing?.id);
@@ -409,7 +421,7 @@ export default function MembersPage() {
                     </TableRow>
                   </TableHeader>
                   <TableBody>
-                    {members.map((m) => (
+                    {pagedMembers.map((m) => (
                       <TableRow
                         key={m.id}
                         className="cursor-pointer"
@@ -438,6 +450,29 @@ export default function MembersPage() {
                   </TableBody>
                 </Table>
               </div>
+              {members.length > MEMBERS_PAGE_SIZE && (
+                <div className="flex items-center justify-center gap-3 text-sm">
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => setMemberPage((p) => Math.max(0, p - 1))}
+                    disabled={currentMemberPage === 0}
+                  >
+                    Prev
+                  </Button>
+                  <span className="rounded-full bg-muted px-3 py-1 text-xs font-semibold text-muted-foreground">
+                    Page {currentMemberPage + 1} of {totalMemberPages}
+                  </span>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => setMemberPage((p) => Math.min(totalMemberPages - 1, p + 1))}
+                    disabled={currentMemberPage >= totalMemberPages - 1}
+                  >
+                    Next
+                  </Button>
+                </div>
+              )}
             </CardContent>
           </Card>
 

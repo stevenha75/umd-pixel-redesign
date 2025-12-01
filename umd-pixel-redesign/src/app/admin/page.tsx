@@ -95,6 +95,8 @@ export default function AdminPage() {
   const [eventSearch, setEventSearch] = useState("");
   const [selectedEvents, setSelectedEvents] = useState<Set<string>>(new Set());
   const [bulkPixels, setBulkPixels] = useState<number | "">("");
+  const [eventPage, setEventPage] = useState(0);
+  const EVENTS_PAGE_SIZE = 20;
 
   const eventSchema = z.object({
     name: z.string().trim().min(1, "Name is required."),
@@ -412,6 +414,16 @@ export default function AdminPage() {
       (evt) => evt.name.toLowerCase().includes(term) || evt.type.toLowerCase().includes(term)
     );
   }, [events, sortDir, sortKey, eventSearch]);
+  const totalEventPages = Math.max(1, Math.ceil(sortedEvents.length / EVENTS_PAGE_SIZE));
+  const currentEventPage = Math.min(eventPage, totalEventPages - 1);
+  const pagedEvents = useMemo(() => {
+    const start = currentEventPage * EVENTS_PAGE_SIZE;
+    return sortedEvents.slice(start, start + EVENTS_PAGE_SIZE);
+  }, [currentEventPage, sortedEvents]);
+
+  useEffect(() => {
+    setEventPage(0);
+  }, [eventSearch, sortDir, sortKey, events.length]);
   const EVENT_SUGGESTION_LIMIT = 8;
   const attendeeEventSuggestions = useMemo(() => {
     const term = attendeeEventSearch.trim().toLowerCase();
@@ -625,114 +637,139 @@ export default function AdminPage() {
               {loading ? (
                 <LoadingState variant="inline" title="Loading events…" />
               ) : (
-                <div className="overflow-x-auto">
-                  <Table>
-                    <TableHeader>
-                      <TableRow>
-                        <TableHead>
-                          <Checkbox
-                            checked={
-                              selectedEvents.size > 0 &&
-                              selectedEvents.size === sortedEvents.length
-                            }
-                            onCheckedChange={(v) =>
-                              v
-                                ? setSelectedEvents(new Set(sortedEvents.map((e) => e.id)))
-                                : setSelectedEvents(new Set())
-                            }
-                          />
-                        </TableHead>
-                        <TableHead>
-                          <button
-                            onClick={() => toggleSort("name")}
-                            className="flex items-center gap-1"
-                            title="Sort by name"
-                          >
-                            Name {sortKey === "name" ? (sortDir === "asc" ? "▲" : "▼") : ""}
-                          </button>
-                        </TableHead>
-                        <TableHead>
-                          <button
-                            onClick={() => toggleSort("date")}
-                            className="flex items-center gap-1"
-                            title="Sort by date"
-                          >
-                            Date {sortKey === "date" ? (sortDir === "asc" ? "▲" : "▼") : ""}
-                          </button>
-                        </TableHead>
-                        <TableHead>Type</TableHead>
-                        <TableHead className="text-right">
-                          <button
-                            onClick={() => toggleSort("pixels")}
-                            className="flex w-full items-center justify-end gap-1"
-                            title="Sort by pixels"
-                          >
-                            Pixels {sortKey === "pixels" ? (sortDir === "asc" ? "▲" : "▼") : ""}
-                          </button>
-                        </TableHead>
-                        <TableHead className="text-right">Attendees</TableHead>
-                        <TableHead className="text-right">Actions</TableHead>
-                      </TableRow>
-                    </TableHeader>
-                    <TableBody>
-                      {sortedEvents.map((evt) => (
-                        <TableRow key={evt.id}>
-                          <TableCell>
-                            <Checkbox
-                              checked={selectedEvents.has(evt.id)}
-                              onCheckedChange={() => toggleEventSelection(evt.id)}
-                            />
-                          </TableCell>
-                          <TableCell className="text-foreground">{evt.name}</TableCell>
-                          <TableCell className="text-muted-foreground">{evt.date}</TableCell>
-                          <TableCell className="text-muted-foreground">{evt.type}</TableCell>
-                          <TableCell className="text-right text-muted-foreground">
-                            {evt.pixels}
-                          </TableCell>
-                          <TableCell className="text-right text-muted-foreground">
-                            {evt.attendeesCount}
-                          </TableCell>
-                          <TableCell className="text-right">
-                            <div className="flex justify-end gap-2">
-                              <Button
-                                variant="outline"
-                                size="sm"
-                                onClick={() => startEdit(evt)}
-                              >
-                                Edit
-                              </Button>
-                              <Button
-                                variant="outline"
-                                size="sm"
-                                onClick={() => {
-                                  setAttendeeEventId(evt.id);
-                                  setAttendeeInput("");
-                                }}
-                              >
-                                Manage attendees
-                              </Button>
-                              <Button
-                                variant="destructive"
-                                size="sm"
-                                onClick={() => deleteEvent(evt)}
-                                disabled={saving}
-                              >
-                                Delete
-                              </Button>
-                            </div>
-                          </TableCell>
-                        </TableRow>
-                      ))}
-                      {events.length === 0 && (
+                <>
+                  <div className="overflow-x-auto">
+                    <Table>
+                      <TableHeader>
                         <TableRow>
-                          <TableCell colSpan={6} className="py-6 text-center text-muted-foreground">
-                            No events yet.
-                          </TableCell>
+                          <TableHead>
+                            <Checkbox
+                              checked={
+                                selectedEvents.size > 0 &&
+                                selectedEvents.size === sortedEvents.length
+                              }
+                              onCheckedChange={(v) =>
+                                v
+                                  ? setSelectedEvents(new Set(sortedEvents.map((e) => e.id)))
+                                  : setSelectedEvents(new Set())
+                              }
+                            />
+                          </TableHead>
+                          <TableHead>
+                            <button
+                              onClick={() => toggleSort("name")}
+                              className="flex items-center gap-1"
+                              title="Sort by name"
+                            >
+                              Name {sortKey === "name" ? (sortDir === "asc" ? "▲" : "▼") : ""}
+                            </button>
+                          </TableHead>
+                          <TableHead>
+                            <button
+                              onClick={() => toggleSort("date")}
+                              className="flex items-center gap-1"
+                              title="Sort by date"
+                            >
+                              Date {sortKey === "date" ? (sortDir === "asc" ? "▲" : "▼") : ""}
+                            </button>
+                          </TableHead>
+                          <TableHead>Type</TableHead>
+                          <TableHead className="text-right">
+                            <button
+                              onClick={() => toggleSort("pixels")}
+                              className="flex w-full items-center justify-end gap-1"
+                              title="Sort by pixels"
+                            >
+                              Pixels {sortKey === "pixels" ? (sortDir === "asc" ? "▲" : "▼") : ""}
+                            </button>
+                          </TableHead>
+                          <TableHead className="text-right">Attendees</TableHead>
+                          <TableHead className="text-right">Actions</TableHead>
                         </TableRow>
-                      )}
-                    </TableBody>
-                  </Table>
-                </div>
+                      </TableHeader>
+                      <TableBody>
+                        {pagedEvents.map((evt) => (
+                          <TableRow key={evt.id}>
+                            <TableCell>
+                              <Checkbox
+                                checked={selectedEvents.has(evt.id)}
+                                onCheckedChange={() => toggleEventSelection(evt.id)}
+                              />
+                            </TableCell>
+                            <TableCell className="text-foreground">{evt.name}</TableCell>
+                            <TableCell className="text-muted-foreground">{evt.date}</TableCell>
+                            <TableCell className="text-muted-foreground">{evt.type}</TableCell>
+                            <TableCell className="text-right text-muted-foreground">
+                              {evt.pixels}
+                            </TableCell>
+                            <TableCell className="text-right text-muted-foreground">
+                              {evt.attendeesCount}
+                            </TableCell>
+                            <TableCell className="text-right">
+                              <div className="flex justify-end gap-2">
+                                <Button
+                                  variant="outline"
+                                  size="sm"
+                                  onClick={() => startEdit(evt)}
+                                >
+                                  Edit
+                                </Button>
+                                <Button
+                                  variant="outline"
+                                  size="sm"
+                                  onClick={() => {
+                                    setAttendeeEventId(evt.id);
+                                    setAttendeeInput("");
+                                  }}
+                                >
+                                  Manage attendees
+                                </Button>
+                                <Button
+                                  variant="destructive"
+                                  size="sm"
+                                  onClick={() => deleteEvent(evt)}
+                                  disabled={saving}
+                                >
+                                  Delete
+                                </Button>
+                              </div>
+                            </TableCell>
+                          </TableRow>
+                        ))}
+                        {events.length === 0 && (
+                          <TableRow>
+                            <TableCell colSpan={6} className="py-6 text-center text-muted-foreground">
+                              No events yet.
+                            </TableCell>
+                          </TableRow>
+                        )}
+                      </TableBody>
+                    </Table>
+                  </div>
+                  {sortedEvents.length > EVENTS_PAGE_SIZE && (
+                    <div className="mt-4 flex items-center justify-center gap-3 text-sm">
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => setEventPage((p) => Math.max(0, p - 1))}
+                        disabled={currentEventPage === 0}
+                      >
+                        Prev
+                      </Button>
+                      <span className="rounded-full bg-muted px-3 py-1 text-xs font-semibold text-muted-foreground">
+                        Page {currentEventPage + 1} of {totalEventPages}
+                      </span>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => setEventPage((p) => Math.min(totalEventPages - 1, p + 1))}
+                        disabled={currentEventPage >= totalEventPages - 1}
+                      >
+                        Next
+                      </Button>
+                    </div>
+                  )}
+                </>
               )}
             </CardContent>
           </Card>
