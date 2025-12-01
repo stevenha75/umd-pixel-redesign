@@ -7,13 +7,18 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
+import { Button } from "@/components/ui/button";
 
 type Props = {
   rows: LeaderboardRow[];
   enabled: boolean;
+  hasMore?: boolean;
+  loadingMore?: boolean;
+  onLoadMore?: () => void;
+  disabled?: boolean;
 };
 
-export function Leaderboard({ rows, enabled }: Props) {
+export function Leaderboard({ rows, enabled, hasMore, loadingMore, onLoadMore, disabled }: Props) {
   return (
     <section className="rounded-2xl border border-primary/10 bg-white/90 p-6 shadow-sm backdrop-blur">
       <div className="mb-4 flex items-center justify-between gap-3">
@@ -69,6 +74,20 @@ export function Leaderboard({ rows, enabled }: Props) {
               )}
             </TableBody>
           </Table>
+        </div>
+      )}
+      {enabled && hasMore && onLoadMore && (
+        <div className="mt-4 flex justify-center">
+          <Button variant="outline" size="sm" onClick={onLoadMore} disabled={loadingMore || disabled}>
+            {loadingMore ? (
+              <span className="flex items-center gap-2">
+                <span className="h-3 w-3 animate-spin rounded-full border-2 border-primary/20 border-t-primary" aria-hidden="true" />
+                Loading...
+              </span>
+            ) : (
+              "Load more"
+            )}
+          </Button>
         </div>
       )}
     </section>

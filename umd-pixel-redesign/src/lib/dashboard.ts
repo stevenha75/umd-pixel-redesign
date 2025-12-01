@@ -36,6 +36,11 @@ export type LeaderboardRow = {
   pixels: number;
 };
 
+export type LeaderboardCursor = {
+  pixels: number;
+  id: string;
+};
+
 export type DashboardData = {
   userName: string;
   email: string;
@@ -46,6 +51,7 @@ export type DashboardData = {
   pixelLogTotal: number;
   leaderboard: LeaderboardRow[];
   leaderboardEnabled: boolean;
+  leaderboardCursor: LeaderboardCursor | null;
   activities: ActivityRow[];
   currentSemesterId: string | null;
   rank?: number;
@@ -73,6 +79,7 @@ export type ActivityRow = {
 
 const requiredTypes = ["GBM", "other_mandatory"];
 export const PIXEL_LOG_PAGE_SIZE = 25;
+export const LEADERBOARD_PAGE_SIZE = 10;
 
 async function fetchExcusedEventIds(userId: string) {
   const excusedSnapshot = await getDocs(
@@ -223,6 +230,35 @@ async function fetchPixelLogPageInternal(
   }
 }
 
+function mapLeaderboardRow(docSnap: QueryDocumentSnapshot): LeaderboardRow {
+  const data = docSnap.data() as UserDocument;
+  const name = `${data.firstName || ""} ${data.lastName || ""}`.trim() || "Member";
+  return {
+    id: docSnap.id,
+    name,
+    pixels: data.pixelCached ?? data.pixels ?? 0,
+  };
+}
+
+function makeLeaderboardCursor(snapshot: QueryDocumentSnapshot): LeaderboardCursor {
+  const data = snapshot.data() as UserDocument;
+  const pixels = data.pixelCached ?? data.pixels ?? 0;
+  return { pixels, id: snapshot.id };
+}
+
+function buildLeaderboardQuery(cursor?: LeaderboardCursor | null) {
+  const constraints = cursor
+    ? [
+        orderBy("pixelCached", "desc"),
+        orderBy(documentId(), "desc"),
+        startAfter(cursor.pixels, cursor.id),
+        limit(LEADERBOARD_PAGE_SIZE),
+      ]
+    : [orderBy("pixelCached", "desc"), orderBy(documentId(), "desc"), limit(LEADERBOARD_PAGE_SIZE)];
+
+  return query(collection(db, "users"), ...constraints);
+}
+
 export async function fetchPixelLogPage({
   userId,
   semesterId,
@@ -290,19 +326,14 @@ export async function fetchDashboardData(userId: string): Promise<DashboardData>
   const pixelTotal = userData.pixelCached ?? userData.pixels ?? earnedPixels + pixelDelta;
 
   let leaderboard: LeaderboardRow[] = [];
+  let leaderboardCursor: LeaderboardCursor | null = null;
   if (leaderboardEnabled) {
-    const leaderboardSnap = await getDocs(
-      query(collection(db, "users"), orderBy("pixelCached", "desc"), limit(10))
-    );
-    leaderboard = leaderboardSnap.docs.map((docSnap) => {
-      const data = docSnap.data() as UserDocument;
-      const name = `${data.firstName || ""} ${data.lastName || ""}`.trim() || "Member";
-      return {
-        id: docSnap.id,
-        name,
-        pixels: data.pixelCached ?? data.pixels ?? 0,
-      };
-    });
+    const leaderboardSnap = await getDocs(buildLeaderboardQuery());
+    leaderboard = leaderboardSnap.docs.map((docSnap) => mapLeaderboardRow(docSnap));
+    leaderboardCursor =
+      leaderboardSnap.docs.length === LEADERBOARD_PAGE_SIZE
+        ? makeLeaderboardCursor(leaderboardSnap.docs[leaderboardSnap.docs.length - 1])
+        : null;
   }
 
   const name = `${userData.firstName || ""} ${userData.lastName || ""}`.trim() || "Member";
@@ -319,8 +350,25 @@ export async function fetchDashboardData(userId: string): Promise<DashboardData>
     pixelLogTotal: pixelLogPage.total ?? pixelLogPage.rows.length,
     leaderboard,
     leaderboardEnabled,
+    leaderboardCursor,
     activities,
     currentSemesterId: currentSemesterId ?? null,
     rank,
   };
+}
+
+export async function fetchLeaderboardPage({
+  cursor,
+}: { cursor?: LeaderboardCursor | null } = {}): Promise<{
+  rows: LeaderboardRow[];
+  nextCursor: LeaderboardCursor | null;
+}> {
+  const leaderboardSnap = await getDocs(buildLeaderboardQuery(cursor));
+  const rows = leaderboardSnap.docs.map((docSnap) => mapLeaderboardRow(docSnap));
+  const nextCursor =
+    leaderboardSnap.docs.length === LEADERBOARD_PAGE_SIZE
+      ? makeLeaderboardCursor(leaderboardSnap.docs[leaderboardSnap.docs.length - 1])
+      : null;
+
+  return { rows, nextCursor };
 }

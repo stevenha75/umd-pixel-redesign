@@ -16,11 +16,19 @@ type Props = {
   hasMore?: boolean;
   onLoadMore?: () => void | Promise<void>;
   loadingMore?: boolean;
+  disabled?: boolean;
 };
 
 const PAGE_SIZE = 10;
 
-export function PixelLogTable({ rows, totalCount, hasMore, onLoadMore, loadingMore }: Props) {
+export function PixelLogTable({
+  rows,
+  totalCount,
+  hasMore,
+  onLoadMore,
+  loadingMore,
+  disabled,
+}: Props) {
   const [page, setPage] = useState(0);
   const [sortKey, setSortKey] = useState<"date" | "name" | "pixels">("date");
   const [sortDir, setSortDir] = useState<"asc" | "desc">("desc");
@@ -96,17 +104,24 @@ export function PixelLogTable({ rows, totalCount, hasMore, onLoadMore, loadingMo
         </div>
         <div className="flex items-center gap-2 text-sm">
           {showLoadMore && (
-            <Button variant="outline" size="sm" onClick={onLoadMore} disabled={loadingMore}>
-              {loadingMore ? "Loading…" : "Load older events"}
+            <Button variant="outline" size="sm" onClick={onLoadMore} disabled={loadingMore || disabled}>
+              {loadingMore ? (
+                <span className="flex items-center gap-2">
+                  <span className="h-3 w-3 animate-spin rounded-full border-2 border-primary/20 border-t-primary" aria-hidden="true" />
+                  Loading…
+                </span>
+              ) : (
+                "Load older events"
+              )}
             </Button>
           )}
-          <Button variant="outline" size="sm" onClick={() => setPage((p) => Math.max(0, p - 1))} disabled={!canPrev}>
+          <Button variant="outline" size="sm" onClick={() => setPage((p) => Math.max(0, p - 1))} disabled={!canPrev || disabled}>
             Prev
           </Button>
           <span className="rounded-full bg-muted px-3 py-1 text-xs font-semibold text-muted-foreground">
             Page {currentPage + 1} of {totalPages}
           </span>
-          <Button variant="outline" size="sm" onClick={() => setPage((p) => Math.min(totalPages - 1, p + 1))} disabled={!canNext}>
+          <Button variant="outline" size="sm" onClick={() => setPage((p) => Math.min(totalPages - 1, p + 1))} disabled={!canNext || disabled}>
             Next
           </Button>
         </div>

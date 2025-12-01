@@ -8,7 +8,16 @@ import { PixelLogTable } from "@/components/dashboard/PixelLogTable";
 import { PixelSummary } from "@/components/dashboard/PixelSummary";
 import { ActivitiesTable } from "@/components/dashboard/ActivitiesTable";
 import { useAuth } from "@/context/AuthContext";
-import { DashboardData, PixelLogCursor, PixelLogRow, fetchDashboardData, fetchPixelLogPage } from "@/lib/dashboard";
+import {
+  DashboardData,
+  LeaderboardCursor,
+  LeaderboardRow,
+  PixelLogCursor,
+  PixelLogRow,
+  fetchDashboardData,
+  fetchLeaderboardPage,
+  fetchPixelLogPage,
+} from "@/lib/dashboard";
 import { Button } from "@/components/ui/button";
 import { LoadingState } from "@/components/LoadingState";
 
@@ -25,23 +34,32 @@ export default function Home() {
   const [pixelCursor, setPixelCursor] = useState<PixelLogCursor | null>(null);
   const [pixelTotal, setPixelTotal] = useState<number | undefined>(undefined);
   const [loadingMorePixels, setLoadingMorePixels] = useState(false);
+  const [leaderboardRows, setLeaderboardRows] = useState<LeaderboardRow[]>([]);
+  const [leaderboardCursor, setLeaderboardCursor] = useState<LeaderboardCursor | null>(null);
+  const [loadingMoreLeaderboard, setLoadingMoreLeaderboard] = useState(false);
 
+  const globalLoading = isLoading || isFetching;
   const hasMorePixelRows = pixelCursor !== null && (pixelTotal === undefined || pixelRows.length < pixelTotal);
+  const hasMoreLeaderboardRows = leaderboardCursor !== null;
 
   useEffect(() => {
     if (!data) {
       setPixelRows([]);
       setPixelCursor(null);
       setPixelTotal(undefined);
+      setLeaderboardRows([]);
+      setLeaderboardCursor(null);
       return;
     }
     setPixelRows(data.pixelLog);
     setPixelCursor(data.pixelLogCursor);
     setPixelTotal(data.pixelLogTotal);
+    setLeaderboardRows(data.leaderboard);
+    setLeaderboardCursor(data.leaderboardCursor);
   }, [data]);
 
   const loadMorePixelRows = async () => {
-    if (!user || !hasMorePixelRows || loadingMorePixels) return;
+    if (!user || !hasMorePixelRows || loadingMorePixels || globalLoading) return;
     setLoadingMorePixels(true);
     try {
       const nextPage = await fetchPixelLogPage({
@@ -54,6 +72,18 @@ export default function Home() {
       setPixelTotal((prev) => prev ?? nextPage.total ?? undefined);
     } finally {
       setLoadingMorePixels(false);
+    }
+  };
+
+  const loadMoreLeaderboardRows = async () => {
+    if (!data?.leaderboardEnabled || !hasMoreLeaderboardRows || loadingMoreLeaderboard || globalLoading) return;
+    setLoadingMoreLeaderboard(true);
+    try {
+      const nextPage = await fetchLeaderboardPage({ cursor: leaderboardCursor });
+      setLeaderboardRows((prev) => [...prev, ...nextPage.rows]);
+      setLeaderboardCursor(nextPage.nextCursor);
+    } finally {
+      setLoadingMoreLeaderboard(false);
     }
   };
 
@@ -79,7 +109,7 @@ export default function Home() {
               <Button variant="outline" size="sm" onClick={() => refetch()} disabled={isFetching}>
                 {isFetching ? (
                   <span className="flex items-center gap-2">
-                    <span className="h-3 w-3 animate-spin rounded-full border-2 border-primary/30 border-t-primary" />
+                    <span className="h-3 w-3 animate-spin rounded-full border-2 border-primary/20 border-t-primary" aria-hidden="true" />
                     Refreshing
                   </span>
                 ) : (
@@ -122,10 +152,18 @@ export default function Home() {
                 totalCount={pixelTotal}
                 hasMore={hasMorePixelRows}
                 onLoadMore={loadMorePixelRows}
-                loadingMore={loadingMorePixels}
+                loadingMore={loadingMorePixels || globalLoading}
+                disabled={globalLoading}
               />
               <ActivitiesTable rows={data.activities} />
-              <Leaderboard rows={data.leaderboard} enabled={data.leaderboardEnabled} />
+              <Leaderboard
+                rows={leaderboardRows}
+                enabled={data.leaderboardEnabled}
+                hasMore={hasMoreLeaderboardRows}
+                loadingMore={loadingMoreLeaderboard || globalLoading}
+                disabled={globalLoading}
+                onLoadMore={loadMoreLeaderboardRows}
+              />
             </>
           )}
         </div>
