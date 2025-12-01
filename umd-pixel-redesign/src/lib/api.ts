@@ -435,8 +435,20 @@ export async function fetchActivities(semesterId?: string): Promise<ActivityReco
   const q = semesterId
     ? query(base, where("semesterId", "==", semesterId), orderBy("name", "asc"))
     : query(base, orderBy("name", "asc"));
-  const snap = await getDocs(q);
-  return snap.docs.map((d) => {
+
+  let snap;
+  try {
+    snap = await getDocs(q);
+  } catch (err) {
+    const code = (err as FirestoreError)?.code;
+    if (code !== "failed-precondition") throw err;
+    const fallbackQuery = semesterId
+      ? query(base, where("semesterId", "==", semesterId))
+      : base;
+    snap = await getDocs(fallbackQuery);
+  }
+
+  const activities = snap.docs.map((d) => {
     const data = d.data() as ActivityDocument;
     const multipliers = Object.entries(data.multipliers || {}).map(([userId, multiplier]) => ({
       userId,
@@ -451,6 +463,9 @@ export async function fetchActivities(semesterId?: string): Promise<ActivityReco
       multipliers,
     };
   });
+
+  activities.sort((a, b) => a.name.localeCompare(b.name));
+  return activities;
 }
 
 export async function createActivity(input: {

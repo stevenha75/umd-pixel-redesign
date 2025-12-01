@@ -15,8 +15,10 @@ import { setAdminByEmail } from "@/lib/api";
 import { CardFooter } from "@/components/ui/card";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { toast } from "sonner";
+import { useAuth } from "@/context/AuthContext";
 
 export default function SettingsPage() {
+  const { user } = useAuth();
   const [currentSemesterId, setCurrentSemesterId] = useState("");
   const [isLeadershipOn, setIsLeadershipOn] = useState(false);
   const [saving, setSaving] = useState(false);
@@ -25,12 +27,13 @@ export default function SettingsPage() {
   const [loadingSuggestions, setLoadingSuggestions] = useState(false);
 
   const settingsQuery = useQuery({
-    queryKey: ["admin-settings"],
+    queryKey: ["admin-settings", user?.uid],
     queryFn: async () => {
       const snap = await getDoc(doc(db, "settings", "global"));
       return snap.data() || {};
     },
     staleTime: 60_000,
+    enabled: !!user,
   });
 
   useEffect(() => {

@@ -27,6 +27,20 @@
                     "order": "DESCENDING"
                 }
             ]
+        },
+        {
+            "collectionId": "activities",
+            "queryScope": "COLLECTION",
+            "fields": [
+                {
+                    "fieldPath": "semesterId",
+                    "order": "ASCENDING"
+                },
+                {
+                    "fieldPath": "name",
+                    "order": "ASCENDING"
+                }
+            ]
         }
     ],
     "fieldOverrides": []
