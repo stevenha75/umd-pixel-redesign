@@ -25,6 +25,25 @@ export function PixelLogTable({ rows, totalCount, hasMore, onLoadMore, loadingMo
   const [sortKey, setSortKey] = useState<"date" | "name" | "pixels">("date");
   const [sortDir, setSortDir] = useState<"asc" | "desc">("desc");
 
+  const typeLabels: Record<string, string> = {
+    GBM: "GBM",
+    other_mandatory: "Other mandatory",
+    sponsor_event: "Sponsor event",
+    other_prof_dev: "Other professional development",
+    social: "Social",
+    other_optional: "Other optional",
+    pixel_activity: "Pixel activity",
+    special: "Special",
+  };
+
+  const formatType = (type: string) => {
+    if (typeLabels[type]) return typeLabels[type];
+    return type
+      .split("_")
+      .map((part) => part.charAt(0).toUpperCase() + part.slice(1))
+      .join(" ");
+  };
+
   const sortedRows = useMemo(() => {
     const copy = [...rows];
     copy.sort((a, b) => {
@@ -133,7 +152,7 @@ export function PixelLogTable({ rows, totalCount, hasMore, onLoadMore, loadingMo
               <TableRow key={row.id} className="odd:bg-muted/30">
                 <TableCell className="whitespace-nowrap text-foreground">{row.date}</TableCell>
                 <TableCell className="text-foreground">{row.name}</TableCell>
-                <TableCell className="text-muted-foreground">{row.type}</TableCell>
+                <TableCell className="text-muted-foreground">{formatType(row.type)}</TableCell>
                 <TableCell className="text-muted-foreground">{row.attendance}</TableCell>
                 <TableCell className="text-right text-muted-foreground">{row.pixelsAllocated}</TableCell>
                 <TableCell className="text-right font-semibold text-foreground">
