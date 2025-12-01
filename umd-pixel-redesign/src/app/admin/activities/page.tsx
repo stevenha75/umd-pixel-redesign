@@ -7,6 +7,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
+import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useQuery } from "@tanstack/react-query";
 import { LoadingState } from "@/components/LoadingState";
@@ -20,6 +21,7 @@ import {
   fetchActivitiesPage,
   fetchAdminData,
   setActivityMultiplier,
+  setActivityMultipliersByEmail,
   updateActivity,
   findUserIdByEmail,
   fetchUserDetails,
@@ -68,6 +70,7 @@ export default function ActivitiesPage() {
   const [form, setForm] = useState({ name: "", type: "coffee_chat", pixels: 0 });
   const [editingId, setEditingId] = useState<string | null>(null);
   const [multiplierUser, setMultiplierUser] = useState("");
+  const [multiplierEmails, setMultiplierEmails] = useState("");
   const [multiplierValue, setMultiplierValue] = useState("1");
   const [targetActivity, setTargetActivity] = useState<string | null>(null);
   const [targetActivitySearch, setTargetActivitySearch] = useState("");
@@ -220,7 +223,36 @@ export default function ActivitiesPage() {
       setMultiplierUser("");
       setMemberSearch("");
       setMemberSuggestions([]);
-      setMultiplierValue("1");
+      // Keep multiplierValue as is for convenience
+    } catch (err) {
+      console.error(err);
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const handleSetMultipliersByEmail = async () => {
+    if (!targetActivity || !multiplierEmails.trim()) return;
+    if (multiplierValue === "") return;
+
+    const parsedValue = Number(multiplierValue);
+    if (!Number.isFinite(parsedValue)) return;
+    const sanitizedValue = Math.max(0, parsedValue);
+
+    setSaving(true);
+    try {
+      const emails = multiplierEmails
+        .replace(/\n/g, " ")
+        .split(/[ ,]+/)
+        .map((e) => e.trim())
+        .filter(Boolean);
+
+      const foundIds = await setActivityMultipliersByEmail(targetActivity, emails, sanitizedValue);
+      
+      if (foundIds.length > 0) {
+        await activitiesQuery.refetch();
+        setMultiplierEmails("");
+      }
     } catch (err) {
       console.error(err);
     } finally {
@@ -484,6 +516,28 @@ export default function ActivitiesPage() {
               <p className="text-xs text-muted-foreground">
                 Set multiplier to 0 to remove the member from this activity.
               </p>
+              <div className="flex flex-col gap-2 border-t pt-3">
+                <label className="text-sm text-muted-foreground">
+                  Paste emails (space, comma, or newline separated)
+                </label>
+                <Textarea
+                  value={multiplierEmails}
+                  onChange={(e) => setMultiplierEmails(e.target.value)}
+                  placeholder="email1@domain.com email2@domain.com"
+                  rows={3}
+                />
+                <Button
+                  onClick={handleSetMultipliersByEmail}
+                  disabled={
+                    saving ||
+                    !targetActivity ||
+                    !multiplierEmails.trim() ||
+                    multiplierValue === ""
+                  }
+                >
+                  Set for emails
+                </Button>
+              </div>
               {targetActivity && (
                 areMultipliersLoading ? (
                   <LoadingState variant="inline" title="Loading members..." />

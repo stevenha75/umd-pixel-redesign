@@ -20,6 +20,7 @@ import {
   updateDoc,
   where,
   setDoc,
+  type FieldValue,
   type FirestoreError,
 } from "firebase/firestore";
 import { httpsCallable } from "firebase/functions";
@@ -598,6 +599,35 @@ export async function setActivityMultiplier(activityId: string, userId: string, 
   await updateDoc(doc(db, "activities", activityId), {
     [multiplierField]: sanitized,
   });
+}
+
+export async function setActivityMultipliersByEmail(activityId: string, emails: string[], multiplier: number) {
+  const unique = Array.from(new Set(emails.map((e) => e.trim()).filter(Boolean)));
+  const foundIds: string[] = [];
+  
+  for (const email of unique) {
+    const snap = await getDocs(
+      query(collection(db, "users"), where("email", "==", email.toLowerCase()))
+    );
+    snap.forEach((d) => foundIds.push(d.id));
+  }
+
+  if (foundIds.length === 0) return [];
+
+  const sanitized = Number.isFinite(multiplier) ? multiplier : 0;
+  
+  const updates: Record<string, number | FieldValue> = {};
+  foundIds.forEach(userId => {
+      const multiplierField = `multipliers.${userId}`;
+      if (sanitized <= 0) {
+          updates[multiplierField] = deleteField();
+      } else {
+          updates[multiplierField] = sanitized;
+      }
+  });
+
+  await updateDoc(doc(db, "activities", activityId), updates);
+  return foundIds;
 }
 
 export async function findUserIdByEmail(email: string): Promise<string | null> {
