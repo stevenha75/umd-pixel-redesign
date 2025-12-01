@@ -102,7 +102,7 @@ export default function SettingsPage() {
     if (!adminEmail.trim()) return;
     setSaving(true);
     try {
-      const updated = await setAdminByEmail(adminEmail, true);
+      await setAdminByEmail(adminEmail, true);
       setAdminEmail("");
     } catch (err) {
       console.error(err);
@@ -116,8 +116,7 @@ export default function SettingsPage() {
     setSaving(true);
     try {
       const recalculateFn = httpsCallable(functions, "recalculateAllUserPixels");
-      const result = await recalculateFn();
-      const data = result.data as { count?: number };
+      await recalculateFn();
     } catch (err) {
       console.error(err);
     } finally {
