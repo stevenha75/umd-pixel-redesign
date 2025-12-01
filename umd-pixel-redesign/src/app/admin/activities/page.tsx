@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { ProtectedRoute } from "@/components/ProtectedRoute";
 import { AdminLayout } from "@/components/admin/AdminLayout";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -11,10 +11,13 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { useQuery } from "@tanstack/react-query";
 import { LoadingState } from "@/components/LoadingState";
 import {
+  ACTIVITIES_PAGE_SIZE,
+  ActivityCursor,
+  ActivityPage,
   ActivityRecord,
   createActivity,
   deleteActivity,
-  fetchActivities,
+  fetchActivitiesPage,
   fetchAdminData,
   setActivityMultiplier,
   updateActivity,
@@ -31,19 +34,36 @@ export default function ActivitiesPage() {
     queryFn: fetchAdminData,
     enabled: !!user,
   });
-  const activitiesQuery = useQuery<ActivityRecord[]>({
-    queryKey: ["activities"],
+  const activitiesQuery = useQuery<ActivityPage>({
+    queryKey: ["activities", adminQuery.data?.currentSemesterId],
     queryFn: async () => {
       const semesterId = adminQuery.data?.currentSemesterId || undefined;
-      return fetchActivities(semesterId);
+      return fetchActivitiesPage({ semesterId, includeTotal: true });
     },
     enabled: !!adminQuery.data,
   });
 
+  const [activities, setActivities] = useState<ActivityRecord[]>([]);
+  const [activityCursor, setActivityCursor] = useState<ActivityCursor | null>(null);
+  const [activityTotal, setActivityTotal] = useState<number | undefined>(undefined);
+  const [loadingMoreActivities, setLoadingMoreActivities] = useState(false);
   const [multiplierDetails, setMultiplierDetails] = useState<Map<string, { name: string; email: string }>>(new Map());
+  const hasMoreActivities = activityCursor !== null;
+
+  useEffect(() => {
+    if (activitiesQuery.data) {
+      setActivities(activitiesQuery.data.rows);
+      setActivityCursor(activitiesQuery.data.nextCursor);
+      setActivityTotal(activitiesQuery.data.total);
+    } else {
+      setActivities([]);
+      setActivityCursor(null);
+      setActivityTotal(undefined);
+    }
+  }, [activitiesQuery.data]);
 
   const loadMultiplierDetails = async (activityId: string) => {
-    const activity = activitiesQuery.data?.find((a) => a.id === activityId);
+    const activity = activities.find((a) => a.id === activityId);
     if (!activity) return;
     const ids = activity.multipliers.map((m) => m.userId);
     const details = await fetchUserDetails(ids);
@@ -105,6 +125,20 @@ export default function ActivitiesPage() {
       setMultiplierValue(1);
     } finally {
       setSaving(false);
+    }
+  };
+
+  const loadMoreActivities = async () => {
+    if (!hasMoreActivities || loadingMoreActivities || activitiesQuery.isFetching) return;
+    setLoadingMoreActivities(true);
+    try {
+      const semesterId = adminQuery.data?.currentSemesterId || undefined;
+      const nextPage = await fetchActivitiesPage({ semesterId, cursor: activityCursor });
+      setActivities((prev) => [...prev, ...nextPage.rows]);
+      setActivityCursor(nextPage.nextCursor);
+      setActivityTotal((prev) => prev ?? nextPage.total);
+    } finally {
+      setLoadingMoreActivities(false);
     }
   };
 
@@ -171,7 +205,7 @@ export default function ActivitiesPage() {
                   {activitiesQuery.isLoading ? (
                     <LoadingState variant="inline" title="Loading activities…" />
                   ) : (
-                    `${activitiesQuery.data?.length || 0} activities`
+                    `Showing ${activities.length} of ${activityTotal ?? activities.length} activities`
                   )}
                 </CardDescription>
               </div>
@@ -189,7 +223,7 @@ export default function ActivitiesPage() {
                     </TableRow>
                   </TableHeader>
                   <TableBody>
-                    {activitiesQuery.data?.map((act) => (
+                    {activities.map((act) => (
                       <TableRow key={act.id}>
                         <TableCell className="text-foreground">{act.name}</TableCell>
                         <TableCell className="text-muted-foreground">{act.type}</TableCell>
@@ -226,7 +260,7 @@ export default function ActivitiesPage() {
                         </TableCell>
                       </TableRow>
                     ))}
-                    {!activitiesQuery.data?.length && (
+                    {!activities.length && (
                       <TableRow>
                         <TableCell colSpan={5} className="py-6 text-center text-muted-foreground">
                           No activities yet.
@@ -236,6 +270,18 @@ export default function ActivitiesPage() {
                   </TableBody>
                 </Table>
               </div>
+              {hasMoreActivities && (
+                <div className="mt-4 flex justify-center">
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={loadMoreActivities}
+                    disabled={loadingMoreActivities || activitiesQuery.isFetching}
+                  >
+                    {loadingMoreActivities ? "Loading…" : `Load more (next ${ACTIVITIES_PAGE_SIZE})`}
+                  </Button>
+                </div>
+              )}
             </CardContent>
           </Card>
 
@@ -245,18 +291,18 @@ export default function ActivitiesPage() {
               <CardDescription>Set multiplier per member for an activity.</CardDescription>
             </CardHeader>
             <CardContent className="space-y-3">
-                  <Select
-                    value={targetActivity || ""}
-                    onValueChange={async (v) => {
-                      setTargetActivity(v);
-                      await loadMultiplierDetails(v);
-                    }}
-                  >
+              <Select
+                value={targetActivity || ""}
+                onValueChange={async (v) => {
+                  setTargetActivity(v);
+                  await loadMultiplierDetails(v);
+                }}
+              >
                 <SelectTrigger className="w-64">
                   <SelectValue placeholder="Select activity" />
                 </SelectTrigger>
                 <SelectContent>
-                  {activitiesQuery.data?.map((act) => (
+                  {activities.map((act) => (
                     <SelectItem key={act.id} value={act.id}>
                       {act.name}
                     </SelectItem>
@@ -291,8 +337,8 @@ export default function ActivitiesPage() {
                       </TableRow>
                     </TableHeader>
                     <TableBody>
-                      {activitiesQuery.data
-                        ?.find((a) => a.id === targetActivity)
+                      {activities
+                        .find((a) => a.id === targetActivity)
                         ?.multipliers.map((m) => {
                           const details = multiplierDetails.get(m.userId);
                           return (

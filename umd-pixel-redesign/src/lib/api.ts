@@ -10,9 +10,12 @@ import {
   documentId,
   getDoc,
   getDocs,
+  getCountFromServer,
   limit,
   orderBy,
+  QueryDocumentSnapshot,
   query,
+  startAfter,
   updateDoc,
   where,
   setDoc,
@@ -91,6 +94,19 @@ export type ActivityRecord = {
   semesterId?: string;
   multipliers: { userId: string; multiplier: number }[];
 };
+
+export type ActivityCursor = {
+  name: string;
+  id: string;
+};
+
+export type ActivityPage = {
+  rows: ActivityRecord[];
+  nextCursor: ActivityCursor | null;
+  total?: number;
+};
+
+export const ACTIVITIES_PAGE_SIZE = 20;
 
 
 export async function fetchAdminData(): Promise<AdminData> {
@@ -437,25 +453,35 @@ export async function addAttendeesByEmail(eventId: string, emails: string[]) {
   return foundIds;
 }
 
-export async function fetchActivities(semesterId?: string): Promise<ActivityRecord[]> {
+function buildActivitiesQuery(semesterId?: string, cursor?: ActivityCursor | null, pageSize = ACTIVITIES_PAGE_SIZE) {
   const base = collection(db, "activities");
-  const q = semesterId
-    ? query(base, where("semesterId", "==", semesterId), orderBy("name", "asc"))
-    : query(base, orderBy("name", "asc"));
+  const filters = semesterId ? [where("semesterId", "==", semesterId)] : [];
 
-  let snap;
-  try {
-    snap = await getDocs(q);
-  } catch (err) {
-    const code = (err as FirestoreError)?.code;
-    if (code !== "failed-precondition") throw err;
-    const fallbackQuery = semesterId
-      ? query(base, where("semesterId", "==", semesterId))
-      : base;
-    snap = await getDocs(fallbackQuery);
-  }
+  const constraints = cursor
+    ? [
+        ...filters,
+        orderBy("name", "asc"),
+        orderBy(documentId(), "asc"),
+        startAfter(cursor.name, cursor.id),
+        limit(pageSize),
+      ]
+    : [...filters, orderBy("name", "asc"), orderBy(documentId(), "asc"), limit(pageSize)];
 
-  const activities = snap.docs.map((d) => {
+  return query(base, ...constraints);
+}
+
+export async function fetchActivitiesPage({
+  semesterId,
+  cursor,
+  includeTotal = false,
+}: {
+  semesterId?: string;
+  cursor?: ActivityCursor | null;
+  includeTotal?: boolean;
+}): Promise<ActivityPage> {
+  const base = collection(db, "activities");
+
+  const mapDoc = (d: QueryDocumentSnapshot) => {
     const data = d.data() as ActivityDocument;
     const multipliers = Object.entries(data.multipliers || {}).map(([userId, multiplier]) => ({
       userId,
@@ -469,10 +495,65 @@ export async function fetchActivities(semesterId?: string): Promise<ActivityReco
       semesterId: data.semesterId,
       multipliers,
     };
-  });
+  };
 
-  activities.sort((a, b) => a.name.localeCompare(b.name));
-  return activities;
+  try {
+    const snap = await getDocs(buildActivitiesQuery(semesterId, cursor));
+    const rows = snap.docs.map((d) => mapDoc(d));
+    const nextCursor =
+      snap.docs.length === ACTIVITIES_PAGE_SIZE
+        ? { name: rows[rows.length - 1].name, id: snap.docs[snap.docs.length - 1].id }
+        : null;
+
+    let total: number | undefined;
+    if (includeTotal) {
+      const countQuery = semesterId ? query(base, where("semesterId", "==", semesterId)) : base;
+      const countSnap = await getCountFromServer(countQuery);
+      total = Number(countSnap.data().count || 0);
+    }
+
+    return { rows, nextCursor, total };
+  } catch (err) {
+    const code = (err as FirestoreError)?.code;
+    if (code !== "failed-precondition") throw err;
+
+    const fallbackQuery = semesterId
+      ? query(base, where("semesterId", "==", semesterId))
+      : base;
+    const snap = await getDocs(fallbackQuery);
+
+    const docs = snap.docs
+      .map((d) => ({ doc: d, data: d.data() as ActivityDocument }))
+      .sort((a, b) => {
+        const nameCompare = (a.data.name || "").localeCompare(b.data.name || "");
+        if (nameCompare !== 0) return nameCompare;
+        return a.doc.id.localeCompare(b.doc.id);
+      });
+
+    const startIndex = cursor ? Math.max(0, docs.findIndex((d) => d.doc.id === cursor.id) + 1) : 0;
+    const pageDocs = docs.slice(startIndex, startIndex + ACTIVITIES_PAGE_SIZE);
+
+    const rows = pageDocs.map(({ doc }) => mapDoc(doc));
+    const nextCursor =
+      startIndex + ACTIVITIES_PAGE_SIZE < docs.length && pageDocs.length
+        ? { name: rows[rows.length - 1].name, id: rows[rows.length - 1].id }
+        : null;
+
+    const total = includeTotal ? docs.length : undefined;
+
+    return { rows, nextCursor, total };
+  }
+}
+
+export async function fetchActivities(semesterId?: string): Promise<ActivityRecord[]> {
+  let cursor: ActivityCursor | null = null;
+  const all: ActivityRecord[] = [];
+  do {
+    const page = await fetchActivitiesPage({ semesterId, cursor });
+    all.push(...page.rows);
+    cursor = page.nextCursor;
+  } while (cursor);
+  return all;
 }
 
 export async function createActivity(input: {
