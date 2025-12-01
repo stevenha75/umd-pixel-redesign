@@ -183,21 +183,6 @@ export default function SettingsPage() {
               <CardDescription>Grant admin to a user email.</CardDescription>
             </CardHeader>
             <CardContent className="space-y-3">
-              <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                <span>Type a user email to search</span>
-                <div className="relative group">
-                  <button
-                    type="button"
-                    className="inline-flex h-5 w-5 items-center justify-center rounded-full border border-border text-[10px] text-muted-foreground hover:bg-muted"
-                    aria-label="Suggestion info"
-                  >
-                    ?
-                  </button>
-                  <div className="pointer-events-none absolute left-1/2 top-full z-10 mt-1 hidden -translate-x-1/2 whitespace-nowrap rounded-md border border-border bg-popover px-2 py-1 text-xs text-foreground shadow group-hover:block">
-                    Up to {SUGGESTION_LIMIT} matches.
-                  </div>
-                </div>
-              </div>
               <Input
                 value={adminEmail}
                 onChange={(e) => {

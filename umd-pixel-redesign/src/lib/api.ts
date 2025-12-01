@@ -106,7 +106,7 @@ export type ActivityPage = {
   total?: number;
 };
 
-export const ACTIVITIES_PAGE_SIZE = 20;
+export const ACTIVITIES_PAGE_SIZE = 15;
 
 
 export async function fetchAdminData(): Promise<AdminData> {
