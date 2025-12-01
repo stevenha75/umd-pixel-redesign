@@ -455,6 +455,14 @@ export default function AdminPage() {
     <ProtectedRoute requireAdmin>
       <AdminLayout>
         <div className="flex flex-col gap-6 pb-10">
+          {adminQuery.error && (
+            <div className="rounded-lg border border-destructive/40 bg-destructive/10 px-3 py-2 text-sm text-destructive">
+              <div className="font-semibold">Could not load admin data</div>
+              <div className="break-all text-xs text-destructive/80">
+                {(adminQuery.error as Error).message}
+              </div>
+            </div>
+          )}
           <div className="flex flex-col gap-3">
             <div className="inline-flex items-center gap-2 rounded-full bg-primary/10 px-3 py-1 text-xs font-semibold text-primary ring-1 ring-primary/15">
               Admin workspace

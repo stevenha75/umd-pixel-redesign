@@ -15,6 +15,16 @@
             ]
         },
         {
+            "collectionGroup": "excused_absences",
+            "queryScope": "COLLECTION_GROUP",
+            "fields": [
+                {
+                    "fieldPath": "createdAt",
+                    "order": "DESCENDING"
+                }
+            ]
+        },
+        {
             "collectionId": "events",
             "queryScope": "COLLECTION",
             "fields": [

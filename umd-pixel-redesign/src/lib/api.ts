@@ -142,12 +142,19 @@ export async function fetchAdminData(): Promise<AdminData> {
     eventIds.add(d.id);
   });
 
-  const excusedSnap = await getDocs(
-    query(collectionGroup(db, "excused_absences"), orderBy("createdAt", "desc"))
-  );
-
   const excused: ExcusedRequest[] = [];
   const userIds = new Set<string>(attendeeIds);
+  let excusedSnap;
+  try {
+    excusedSnap = await getDocs(
+      query(collectionGroup(db, "excused_absences"), orderBy("createdAt", "desc"))
+    );
+  } catch (err) {
+    const code = (err as FirestoreError)?.code;
+    if (code !== "failed-precondition") throw err;
+    excusedSnap = await getDocs(collectionGroup(db, "excused_absences"));
+  }
+
   excusedSnap.forEach((d) => {
     const data = d.data() as ExcusedAbsenceDocument;
     const eventId = d.ref.parent.parent?.id || "";
