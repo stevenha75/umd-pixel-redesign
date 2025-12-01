@@ -68,7 +68,7 @@ export default function ActivitiesPage() {
   const [form, setForm] = useState({ name: "", type: "coffee_chat", pixels: 0 });
   const [editingId, setEditingId] = useState<string | null>(null);
   const [multiplierUser, setMultiplierUser] = useState("");
-  const [multiplierValue, setMultiplierValue] = useState(1);
+  const [multiplierValue, setMultiplierValue] = useState("1");
   const [targetActivity, setTargetActivity] = useState<string | null>(null);
   const [targetActivitySearch, setTargetActivitySearch] = useState("");
   const [memberSearch, setMemberSearch] = useState("");
@@ -186,18 +186,24 @@ export default function ActivitiesPage() {
   };
 
   const handleSetMultiplier = async () => {
-    if (!targetActivity || !multiplierUser.trim()) return;
+    const identifier = multiplierUser.trim() || memberSearch.trim();
+    if (!targetActivity || !identifier) return;
+
+    if (multiplierValue === "") return;
+
+    const parsedValue = Number(multiplierValue);
+    if (!Number.isFinite(parsedValue)) return;
+
+    if (parsedValue < 0) return;
+
+    const sanitizedValue = Math.max(0, parsedValue);
     setSaving(true);
     try {
-      const value = Number(multiplierValue) || 1;
-      const emailLookup = multiplierUser.includes("@");
+      const emailLookup = identifier.includes("@");
       const userId = emailLookup
-        ? await findUserIdByEmail(multiplierUser.trim())
-        : multiplierUser.trim();
-      if (!userId) {
-        setSaving(false);
-        return;
-      }
+        ? await findUserIdByEmail(identifier.toLowerCase())
+        : identifier;
+      if (!userId) return;
 
       // Pre-fetch user details to prevent flicker
       if (!multiplierDetails.has(userId)) {
@@ -209,12 +215,14 @@ export default function ActivitiesPage() {
         });
       }
 
-      await setActivityMultiplier(targetActivity, userId, value);
+      await setActivityMultiplier(targetActivity, userId, sanitizedValue);
       await activitiesQuery.refetch();
       setMultiplierUser("");
       setMemberSearch("");
       setMemberSuggestions([]);
-      setMultiplierValue(1);
+      setMultiplierValue("1");
+    } catch (err) {
+      console.error(err);
     } finally {
       setSaving(false);
     }
@@ -419,12 +427,12 @@ export default function ActivitiesPage() {
                 <div className="relative">
                   <Input
                     placeholder="Search member (name or email)"
-                    value={memberSearch}
-                    onChange={(e) => {
-                      setMemberSearch(e.target.value);
-                      setMultiplierUser("");
-                    }}
-                  />
+                  value={memberSearch}
+                  onChange={(e) => {
+                    setMemberSearch(e.target.value);
+                    setMultiplierUser(e.target.value);
+                  }}
+                />
                   {memberSearch.trim().length > 0 &&
                     memberSuggestions.length > 0 &&
                     !memberSuggestions.some(
@@ -451,15 +459,31 @@ export default function ActivitiesPage() {
                 </div>
                 <Input
                   type="number"
-                  min={1}
-                  placeholder="Multiplier"
+                  min={0}
+                  step={1}
+                  placeholder="Multiplier (0 removes member)"
                   value={multiplierValue}
-                  onChange={(e) => setMultiplierValue(Number(e.target.value))}
+                  onChange={(e) => {
+                    setMultiplierValue(e.target.value);
+                  }}
                 />
-                <Button onClick={handleSetMultiplier} disabled={saving || !targetActivity || !multiplierUser}>
-                  Set multiplier
+                <Button
+                  onClick={handleSetMultiplier}
+                  disabled={
+                    saving ||
+                    !targetActivity ||
+                    !(multiplierUser.trim() || memberSearch.trim()) ||
+                    multiplierValue === ""
+                  }
+                >
+                  {multiplierValue !== "" && Number(multiplierValue) === 0
+                    ? "Remove member"
+                    : "Set multiplier"}
                 </Button>
               </div>
+              <p className="text-xs text-muted-foreground">
+                Set multiplier to 0 to remove the member from this activity.
+              </p>
               {targetActivity && (
                 areMultipliersLoading ? (
                   <LoadingState variant="inline" title="Loading members..." />

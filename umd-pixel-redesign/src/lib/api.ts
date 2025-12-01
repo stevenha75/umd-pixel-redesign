@@ -6,6 +6,7 @@ import {
   collection,
   collectionGroup,
   deleteDoc,
+  deleteField,
   doc,
   documentId,
   getDoc,
@@ -481,10 +482,12 @@ export async function fetchActivitiesPage({
 
   const mapDoc = (d: QueryDocumentSnapshot) => {
     const data = d.data() as ActivityDocument;
-    const multipliers = Object.entries(data.multipliers || {}).map(([userId, multiplier]) => ({
-      userId,
-      multiplier: Number(multiplier),
-    }));
+    const multipliers = Object.entries(data.multipliers || {})
+      .filter(([, multiplier]) => Number(multiplier) > 0)
+      .map(([userId, multiplier]) => ({
+        userId,
+        multiplier: Number(multiplier),
+      }));
     return {
       id: d.id,
       name: data.name || "Activity",
@@ -582,8 +585,18 @@ export async function deleteActivity(activityId: string) {
 }
 
 export async function setActivityMultiplier(activityId: string, userId: string, multiplier: number) {
+  const sanitized = Number.isFinite(multiplier) ? multiplier : 0;
+  const multiplierField = `multipliers.${userId}`;
+
+  if (sanitized <= 0) {
+    await updateDoc(doc(db, "activities", activityId), {
+      [multiplierField]: deleteField(),
+    });
+    return;
+  }
+
   await updateDoc(doc(db, "activities", activityId), {
-    [`multipliers.${userId}`]: multiplier,
+    [multiplierField]: sanitized,
   });
 }
 

@@ -3,7 +3,6 @@ import { Geist_Mono, Karla, Rubik } from "next/font/google";
 import "./globals.css";
 import { AuthProvider } from "@/context/AuthContext";
 import { ReactQueryProvider } from "@/components/providers/ReactQueryProvider";
-import { Toaster } from "@/components/ui/sonner";
 
 const geistMono = Geist_Mono({
   variable: "--font-geist-mono",
@@ -42,7 +41,6 @@ export default function RootLayout({
       >
         <ReactQueryProvider>
           <AuthProvider>{children}</AuthProvider>
-          <Toaster />
         </ReactQueryProvider>
       </body>
     </html>

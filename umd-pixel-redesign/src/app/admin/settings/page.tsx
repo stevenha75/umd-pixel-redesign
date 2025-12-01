@@ -14,7 +14,6 @@ import { useQuery } from "@tanstack/react-query";
 import { setAdminByEmail } from "@/lib/api";
 import { CardFooter } from "@/components/ui/card";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
-import { toast } from "sonner";
 import { useAuth } from "@/context/AuthContext";
 
 export default function SettingsPage() {
@@ -51,11 +50,9 @@ export default function SettingsPage() {
         currentSemesterId: currentSemesterId.trim(),
         isLeadershipOn,
       }, { merge: true });
-      toast.success("Settings saved.");
       settingsQuery.refetch();
     } catch (err) {
       console.error(err);
-      toast.error("Failed to save settings.");
     } finally {
       setSaving(false);
     }
@@ -107,15 +104,8 @@ export default function SettingsPage() {
     try {
       const updated = await setAdminByEmail(adminEmail, true);
       setAdminEmail("");
-      toast.success("Admin access granted.", {
-        description:
-          updated > 1
-            ? `${updated} accounts matched this email. The user must log out and log back in to receive permissions.`
-            : "The user must log out and log back in to receive permissions.",
-      });
     } catch (err) {
       console.error(err);
-      toast.error(err instanceof Error ? err.message : "Failed to update admin.");
     } finally {
       setSaving(false);
     }
@@ -128,10 +118,8 @@ export default function SettingsPage() {
       const recalculateFn = httpsCallable(functions, "recalculateAllUserPixels");
       const result = await recalculateFn();
       const data = result.data as { count?: number };
-      toast.success(`Recalculation complete for ${data.count || "all"} users.`);
     } catch (err) {
       console.error(err);
-      toast.error("Failed to trigger recalculation.");
     } finally {
       setSaving(false);
     }
