@@ -13,6 +13,20 @@
                     "order": "ASCENDING"
                 }
             ]
+        },
+        {
+            "collectionId": "events",
+            "queryScope": "COLLECTION",
+            "fields": [
+                {
+                    "fieldPath": "semesterId",
+                    "order": "ASCENDING"
+                },
+                {
+                    "fieldPath": "date",
+                    "order": "DESCENDING"
+                }
+            ]
         }
     ],
     "fieldOverrides": []

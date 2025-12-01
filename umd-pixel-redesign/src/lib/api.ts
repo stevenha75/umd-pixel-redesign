@@ -16,6 +16,7 @@ import {
   updateDoc,
   where,
   setDoc,
+  type FirestoreError,
 } from "firebase/firestore";
 import { httpsCallable } from "firebase/functions";
 import { db, functions } from "./firebase";
@@ -104,7 +105,18 @@ export async function fetchAdminData(): Promise<AdminData> {
       )
     : query(collection(db, "events"), orderBy("date", "desc"));
 
-  const eventsSnap = await getDocs(eventsQuery);
+  let eventsSnap;
+  try {
+    eventsSnap = await getDocs(eventsQuery);
+  } catch (err) {
+    const code = (err as FirestoreError)?.code;
+    if (code !== "failed-precondition") throw err;
+    // Fall back when the composite index is missing.
+    const fallbackQuery = currentSemesterId
+      ? query(collection(db, "events"), where("semesterId", "==", currentSemesterId))
+      : collection(db, "events");
+    eventsSnap = await getDocs(fallbackQuery);
+  }
   const events: EventRecord[] = [];
   const eventNameMap = new Map<string, string>();
 
@@ -192,15 +204,27 @@ export async function fetchAdminData(): Promise<AdminData> {
     });
   });
 
+  events.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
+
   return { events, excused, currentSemesterId };
 }
 
 export async function createEvent(input: EventInput, semesterId: string | null) {
+  let targetSemesterId = semesterId;
+  if (!targetSemesterId) {
+    const settingsSnap = await getDoc(doc(db, "settings", "global"));
+    targetSemesterId = settingsSnap.data()?.currentSemesterId || "";
+  }
+
+  if (!targetSemesterId) {
+    throw new Error("No current semester set. Please configure it in admin settings.");
+  }
+
   const dateObj = input.date ? new Date(input.date) : new Date();
   const dateValue = Timestamp.fromDate(dateObj);
   const newEvent = {
     name: input.name,
-    semesterId: semesterId || "",
+    semesterId: targetSemesterId,
     date: dateValue,
     type: input.type,
     pixels: Number(input.pixels) || 0,
