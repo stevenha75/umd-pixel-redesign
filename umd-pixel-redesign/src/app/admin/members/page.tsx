@@ -9,7 +9,6 @@ import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Line } from "react-chartjs-2";
 import { Chart as ChartJS, LineElement, PointElement, LinearScale, CategoryScale, Tooltip, Legend } from "chart.js";
 import { CsvExportButton } from "@/components/export/CsvExportButton";
 import { LoadingState } from "@/components/LoadingState";
@@ -29,6 +28,8 @@ import {
   SlackUser,
   setPixelDelta,
   recalculateUserPixels,
+  fetchActivities,
+  ActivityRecord,
 } from "@/lib/api";
 import {
     Dialog,
@@ -50,6 +51,9 @@ export default function MembersPage() {
   const [eventTarget, setEventTarget] = useState("");
   const [eventTargetSearch, setEventTargetSearch] = useState("");
   const [memberPage, setMemberPage] = useState(0);
+  const [memberEventsPage, setMemberEventsPage] = useState(0);
+  const [memberEventsSearch, setMemberEventsSearch] = useState("");
+  const [memberActivitiesPage, setMemberActivitiesPage] = useState(0);
   const [saving, setSaving] = useState(false);
   const [pixelDeltaInput, setPixelDeltaInput] = useState<string>("");
 
@@ -255,6 +259,84 @@ export default function MembersPage() {
       };
     });
   }, [selectedMember, adminQuery.data]);
+  const memberActivitiesQuery = useQuery<ActivityRecord[]>({
+    queryKey: ["member-activities", selectedMember?.id, adminQuery.data?.currentSemesterId],
+    queryFn: async () => {
+      if (!selectedMember) return [];
+      const semesterId = adminQuery.data?.currentSemesterId || undefined;
+      const acts = await fetchActivities(semesterId);
+      return acts.filter((act) => act.multipliers.some((m) => m.userId === selectedMember.id));
+    },
+    enabled: !!selectedMember && !!adminQuery.data,
+  });
+  const memberActivities = useMemo(() => {
+    const acts = memberActivitiesQuery.data || [];
+    return acts.map((act) => {
+      const multiplier =
+        act.multipliers.find((m) => m.userId === selectedMember?.id)?.multiplier || 0;
+      return {
+        id: act.id,
+        name: act.name,
+        type: act.type,
+        pixelsPer: act.pixels,
+        multiplier,
+        total: multiplier * (act.pixels || 0),
+      };
+    });
+  }, [memberActivitiesQuery.data, selectedMember?.id]);
+  const ACTIVITIES_PAGE_SIZE = 5;
+  const pagedMemberActivities = useMemo(() => {
+    const start = memberActivitiesPage * ACTIVITIES_PAGE_SIZE;
+    return memberActivities.slice(start, start + ACTIVITIES_PAGE_SIZE);
+  }, [memberActivities, memberActivitiesPage]);
+  const [memberEventsView, setMemberEventsView] = useState(
+    [] as {
+      id: string;
+      name: string;
+      date: string;
+      type: string;
+      status: string;
+      pixels: number;
+    }[]
+  );
+
+  useEffect(() => {
+    if (!selectedMember) {
+      setMemberEventsView([]);
+      return;
+    }
+    setMemberEventsView(memberEvents);
+  }, [memberEvents, selectedMember]);
+
+  useEffect(() => {
+    setMemberEventsPage(0);
+  }, [memberEventsSearch, selectedMember?.id]);
+
+  useEffect(() => {
+    setMemberActivitiesPage(0);
+  }, [selectedMember?.id, memberActivities.length]);
+
+  const filteredMemberEvents = useMemo(() => {
+    const term = memberEventsSearch.trim().toLowerCase();
+    if (!term) return memberEventsView;
+    return memberEventsView.filter(
+      (evt) =>
+        evt.name.toLowerCase().includes(term) ||
+        evt.type.toLowerCase().includes(term) ||
+        evt.status.toLowerCase().includes(term)
+    );
+  }, [memberEventsSearch, memberEventsView]);
+
+  const pagedMemberEvents = useMemo(() => {
+    const start = memberEventsPage * 5;
+    return filteredMemberEvents.slice(start, start + 5);
+  }, [filteredMemberEvents, memberEventsPage]);
+
+  const memberEventsTotalPages = Math.max(1, Math.ceil(filteredMemberEvents.length / 5));
+
+  useEffect(() => {
+    setMemberEventsPage((page) => Math.min(page, memberEventsTotalPages - 1));
+  }, [memberEventsTotalPages]);
 
   const cycleStatus = async (evtId: string, current: string, type: string) => {
     if (!selectedMember) return;
@@ -267,7 +349,22 @@ export default function MembersPage() {
     setMessage(null);
     try {
       await setAttendanceStatus(evtId, selectedMember.id, next);
+      setMemberEventsView((prev) =>
+        prev.map((evt) => {
+          if (evt.id !== evtId) return evt;
+          const display =
+            next === "present"
+              ? "Present"
+              : next === "excused"
+                ? "Excused"
+                : mandatory
+                  ? "Unexcused"
+                  : "Not Present";
+          return { ...evt, status: display };
+        })
+      );
       await adminQuery.refetch();
+      setMessage("Status updated.");
     } finally {
       setSaving(false);
     }
@@ -333,9 +430,6 @@ export default function MembersPage() {
                 </Button>
                 <span className="text-muted-foreground">{selected.size} selected</span>
                 <div className="relative w-64">
-                  <p className="text-xs text-muted-foreground pb-1">
-                    Type to search events (suggestions capped).
-                  </p>
                   <Input
                     value={eventTargetSearch}
                     onChange={(e) => {
@@ -344,8 +438,12 @@ export default function MembersPage() {
                     }}
                     placeholder="Search events to add"
                   />
-                  {eventTargetSearch.trim().length > 0 && (
-                    <div className="absolute z-10 mt-2 w-full rounded-md border bg-background shadow-sm">
+                  {eventTargetSearch.trim().length > 0 &&
+                    !eventSuggestions.some(
+                      (evt) =>
+                        evt.name.toLowerCase() === eventTargetSearch.trim().toLowerCase()
+                    ) && (
+                    <div className="absolute left-0 right-0 top-full z-10 mt-2 w-full rounded-md border bg-background shadow-sm">
                       {eventSuggestions.map((evt) => (
                         <button
                           key={evt.id}
@@ -378,8 +476,7 @@ export default function MembersPage() {
                 </Button>
                 {message && <span className="text-muted-foreground">{message}</span>}
               </div>
-              <div className="overflow-x-auto">
-                <Table>
+              <Table>
                   <TableHeader>
                     <TableRow>
                       <TableHead>
@@ -423,7 +520,6 @@ export default function MembersPage() {
                     )}
                   </TableBody>
                 </Table>
-              </div>
               {members.length > MEMBERS_PAGE_SIZE && (
                 <div className="flex items-center justify-center gap-3 text-sm">
                   <Button
@@ -581,10 +677,17 @@ export default function MembersPage() {
                       </div>
                     </div>
                     <div className="pt-4">
-                      <div className="text-sm font-semibold text-foreground">Events</div>
-                      <div className="overflow-x-auto">
-                        <Table>
-                          <TableHeader>
+                      <div className="flex flex-wrap items-center justify-between gap-3">
+                        <div className="text-sm font-semibold text-foreground">Events</div>
+                        <Input
+                          placeholder="Search events"
+                          value={memberEventsSearch}
+                          onChange={(e) => setMemberEventsSearch(e.target.value)}
+                          className="h-9 w-full max-w-xs"
+                        />
+                      </div>
+                      <Table>
+                      <TableHeader>
                             <TableRow>
                               <TableHead>Name</TableHead>
                               <TableHead>Date</TableHead>
@@ -595,7 +698,7 @@ export default function MembersPage() {
                             </TableRow>
                           </TableHeader>
                           <TableBody>
-                            {memberEvents.map((evt) => (
+                            {pagedMemberEvents.map((evt) => (
                               <TableRow key={evt.id}>
                                 <TableCell>{evt.name}</TableCell>
                                 <TableCell className="text-muted-foreground">{evt.date}</TableCell>
@@ -616,16 +719,116 @@ export default function MembersPage() {
                                 </TableCell>
                               </TableRow>
                             ))}
-                            {memberEvents.length === 0 && (
+                            {filteredMemberEvents.length === 0 && (
                               <TableRow>
                                 <TableCell colSpan={6} className="py-4 text-center text-muted-foreground">
-                                  No events yet.
+                                  No events found.
                                 </TableCell>
                               </TableRow>
                             )}
                           </TableBody>
                         </Table>
-                      </div>
+                      {(memberEventsSearch.trim() || filteredMemberEvents.length > 5) && (
+                        <div className="mt-3 flex flex-wrap items-center gap-3 text-sm">
+                          {filteredMemberEvents.length > 5 && (
+                            <>
+                              <Button
+                                variant="outline"
+                                size="sm"
+                                onClick={() => setMemberEventsPage((p) => Math.max(0, p - 1))}
+                                disabled={memberEventsPage === 0}
+                              >
+                                Prev
+                              </Button>
+                              <span className="rounded-full bg-muted px-3 py-1 text-xs font-semibold text-muted-foreground">
+                                Page {memberEventsPage + 1} of {memberEventsTotalPages}
+                              </span>
+                              <Button
+                                variant="outline"
+                                size="sm"
+                                onClick={() =>
+                                  setMemberEventsPage((p) =>
+                                    Math.min(Math.max(0, memberEventsTotalPages - 1), p + 1)
+                                  )
+                                }
+                                disabled={memberEventsPage >= memberEventsTotalPages - 1}
+                              >
+                                Next
+                              </Button>
+                            </>
+                          )}
+                        </div>
+                      )}
+                    </div>
+
+                    <div className="pt-4">
+                      <div className="text-sm font-semibold text-foreground">Activities</div>
+                      {memberActivitiesQuery.isLoading ? (
+                        <LoadingState variant="inline" title="Loading activities…" />
+                      ) : (
+                        <Table>
+                          <TableHeader>
+                            <TableRow>
+                              <TableHead>Name</TableHead>
+                              <TableHead>Type</TableHead>
+                              <TableHead className="text-right">Pixels</TableHead>
+                              <TableHead className="text-right">Multiplier</TableHead>
+                              <TableHead className="text-right">Total</TableHead>
+                            </TableRow>
+                          </TableHeader>
+                          <TableBody>
+                              {pagedMemberActivities.map((act) => (
+                                <TableRow key={act.id}>
+                                  <TableCell>{act.name}</TableCell>
+                                  <TableCell className="text-muted-foreground">{act.type}</TableCell>
+                                  <TableCell className="text-right text-muted-foreground">
+                                    {act.pixelsPer}
+                                  </TableCell>
+                                  <TableCell className="text-right text-muted-foreground">
+                                    {act.multiplier}
+                                  </TableCell>
+                                  <TableCell className="text-right text-muted-foreground">
+                                    {act.total}
+                                  </TableCell>
+                                </TableRow>
+                              ))}
+                              {memberActivities.length === 0 && (
+                                <TableRow>
+                                  <TableCell colSpan={5} className="py-4 text-center text-muted-foreground">
+                                    No activities yet.
+                                  </TableCell>
+                                </TableRow>
+                              )}
+                            </TableBody>
+                          </Table>
+                      )}
+                      {memberActivities.length > ACTIVITIES_PAGE_SIZE && (
+                        <div className="mt-3 flex items-center justify-center gap-3 text-sm">
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() => setMemberActivitiesPage((p) => Math.max(0, p - 1))}
+                            disabled={memberActivitiesPage === 0}
+                          >
+                            Prev
+                          </Button>
+                          <span className="rounded-full bg-muted px-3 py-1 text-xs font-semibold text-muted-foreground">
+                            Page {memberActivitiesPage + 1} of {Math.max(1, Math.ceil(memberActivities.length / ACTIVITIES_PAGE_SIZE))}
+                          </span>
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() =>
+                              setMemberActivitiesPage((p) =>
+                                Math.min(Math.max(0, Math.ceil(memberActivities.length / ACTIVITIES_PAGE_SIZE) - 1), p + 1)
+                              )
+                            }
+                            disabled={memberActivitiesPage >= Math.ceil(memberActivities.length / ACTIVITIES_PAGE_SIZE) - 1}
+                          >
+                            Next
+                          </Button>
+                        </div>
+                      )}
                     </div>
                   </>
                 ) : (

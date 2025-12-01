@@ -295,9 +295,7 @@ export async function updateExcusedStatus(eventId: string, requestId: string, st
 }
 
 export async function addAttendee(eventId: string, userId: string) {
-  await updateDoc(doc(db, "events", eventId), {
-    attendees: arrayUnion(userId),
-  });
+  await setAttendanceStatus(eventId, userId, "present");
 }
 
 export async function removeAttendee(eventId: string, userId: string) {

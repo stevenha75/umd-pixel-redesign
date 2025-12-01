@@ -1,4 +1,5 @@
 import { LeaderboardRow } from "@/lib/dashboard";
+import { Trophy } from "lucide-react";
 import {
   Table,
   TableBody,
@@ -23,10 +24,8 @@ export function Leaderboard({ rows, enabled, hasMore, loadingMore, onLoadMore, d
     <section className="rounded-2xl border border-primary/10 bg-white/90 p-6 shadow-sm backdrop-blur">
       <div className="mb-4 flex items-center justify-between gap-3">
         <div className="flex items-center gap-3">
-          <div className="flex h-10 w-10 items-center justify-center rounded-full bg-primary/10 text-primary ring-1 ring-primary/15">
-            <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6">
-              <path strokeLinecap="round" strokeLinejoin="round" d="m12 3 2.09 4.23 4.67.68-3.38 3.28.8 4.65L12 14.77 7.82 15.9l.8-4.65-3.38-3.28 4.67-.68z" />
-            </svg>
+          <div className="flex h-10 w-10 items-center justify-center rounded-full bg-amber-500/10 text-amber-600 ring-1 ring-amber-500/20">
+            <Trophy className="h-5 w-5" />
           </div>
           <div>
             <h2 className="text-lg font-semibold text-foreground">Leaderboard</h2>
@@ -42,8 +41,7 @@ export function Leaderboard({ rows, enabled, hasMore, loadingMore, onLoadMore, d
       {!enabled ? (
         <p className="text-sm text-muted-foreground">Leaderboard is disabled for this semester.</p>
       ) : (
-        <div className="overflow-x-auto">
-          <Table>
+        <Table>
             <TableHeader>
               <TableRow>
                 <TableHead className="text-muted-foreground">#</TableHead>
@@ -74,7 +72,6 @@ export function Leaderboard({ rows, enabled, hasMore, loadingMore, onLoadMore, d
               )}
             </TableBody>
           </Table>
-        </div>
       )}
       {enabled && hasMore && onLoadMore && (
         <div className="mt-4 flex justify-center">

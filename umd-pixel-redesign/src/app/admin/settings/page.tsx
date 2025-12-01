@@ -87,7 +87,12 @@ export default function SettingsPage() {
         })
         .filter(Boolean) as { email: string; name: string }[];
       const uniqueByEmail = Array.from(new Map(suggestions.map((s) => [s.email, s])).values());
-      setEmailSuggestions(uniqueByEmail);
+      const termLower = term.toLowerCase();
+      const filtered = uniqueByEmail.filter(
+        (s) => s.email.toLowerCase().includes(termLower) || s.name.toLowerCase().includes(termLower)
+      );
+      filtered.sort((a, b) => a.name.localeCompare(b.name));
+      setEmailSuggestions(filtered);
     } catch (err) {
       console.error(err);
       setEmailSuggestions([]);
@@ -183,33 +188,39 @@ export default function SettingsPage() {
               <CardDescription>Grant admin to a user email.</CardDescription>
             </CardHeader>
             <CardContent className="space-y-3">
-              <Input
-                value={adminEmail}
-                onChange={(e) => {
-                  setAdminEmail(e.target.value);
-                  void loadEmailSuggestions(e.target.value);
-                }}
-                placeholder="User email"
-                type="email"
-              />
-              {(loadingSuggestions || emailSuggestions.length > 0) && (
-                <div className="rounded-md border bg-background shadow-sm">
-                  {emailSuggestions.map((suggestion) => (
-                    <button
-                      key={suggestion.email}
-                      className="flex w-full flex-col px-3 py-2 text-left hover:bg-muted"
-                      onClick={() => setAdminEmail(suggestion.email)}
-                      type="button"
-                    >
-                      <span className="text-sm text-foreground">{suggestion.name}</span>
-                      <span className="text-xs text-muted-foreground">{suggestion.email}</span>
-                    </button>
-                  ))}
-                  {loadingSuggestions && (
-                    <div className="px-3 py-2 text-sm text-muted-foreground">Loading…</div>
+              <div className="relative">
+                <Input
+                  value={adminEmail}
+                  onChange={(e) => {
+                    setAdminEmail(e.target.value);
+                    void loadEmailSuggestions(e.target.value);
+                  }}
+                  placeholder="User email"
+                  type="email"
+                />
+                {adminEmail.trim().length > 0 &&
+                  emailSuggestions.length > 0 &&
+                  !emailSuggestions.some(
+                    (s) => s.email.toLowerCase() === adminEmail.trim().toLowerCase()
+                  ) && (
+                    <div className="absolute z-10 mt-1 w-full rounded-md border bg-background shadow-sm">
+                      {emailSuggestions.map((suggestion) => (
+                        <button
+                          key={suggestion.email}
+                          className="flex w-full flex-col px-3 py-2 text-left hover:bg-muted"
+                          onClick={() => setAdminEmail(suggestion.email)}
+                          type="button"
+                        >
+                          <span className="text-sm text-foreground">{suggestion.name}</span>
+                          <span className="text-xs text-muted-foreground">{suggestion.email}</span>
+                        </button>
+                      ))}
+                      {loadingSuggestions && (
+                        <div className="px-3 py-2 text-sm text-muted-foreground">Loading…</div>
+                      )}
+                    </div>
                   )}
-                </div>
-              )}
+              </div>
               <Button onClick={handleAddAdmin} disabled={saving}>
                 Grant admin
               </Button>

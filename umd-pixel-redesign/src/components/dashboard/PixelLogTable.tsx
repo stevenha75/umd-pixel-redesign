@@ -1,5 +1,6 @@
 import { useMemo, useState } from "react";
 import { PixelLogRow } from "@/lib/dashboard";
+import { Calendar } from "lucide-react";
 import {
   Table,
   TableBody,
@@ -90,13 +91,11 @@ export function PixelLogTable({
     <section className="rounded-2xl border border-primary/10 bg-white/90 p-6 shadow-sm backdrop-blur">
       <div className="mb-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <div className="flex items-center gap-3">
-          <div className="flex h-10 w-10 items-center justify-center rounded-full bg-primary/10 text-primary ring-1 ring-primary/15">
-            <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6">
-              <path strokeLinecap="round" strokeLinejoin="round" d="M5 12h14M5 17h7M5 7h9" />
-            </svg>
+          <div className="flex h-10 w-10 items-center justify-center rounded-full bg-blue-500/10 text-blue-600 ring-1 ring-blue-500/20">
+            <Calendar className="h-5 w-5" />
           </div>
           <div>
-            <h2 className="text-lg font-semibold text-foreground">Pixel log</h2>
+            <h2 className="text-lg font-semibold text-foreground">Event Pixels</h2>
             <p className="text-sm text-muted-foreground">
               Showing {Math.min(sortedRows.length, displayed)} of {displayed} events
             </p>

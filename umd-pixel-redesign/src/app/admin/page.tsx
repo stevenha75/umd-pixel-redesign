@@ -39,6 +39,8 @@ import {
   removeAttendee,
   addAttendeesByEmail,
   findUserIdByEmail,
+  fetchMembers,
+  MemberRecord,
 } from "@/lib/api";
 import { useQuery } from "@tanstack/react-query";
 import { Textarea } from "@/components/ui/textarea";
@@ -89,6 +91,8 @@ export default function AdminPage() {
   const [sortDir, setSortDir] = useState<"asc" | "desc">("desc");
   const [currentSemesterId, setCurrentSemesterId] = useState<string | null>(null);
   const [attendeeInput, setAttendeeInput] = useState("");
+  const [attendeeMemberSearch, setAttendeeMemberSearch] = useState("");
+  const [attendeeMemberSuggestions, setAttendeeMemberSuggestions] = useState<MemberRecord[]>([]);
   const [attendeeEmails, setAttendeeEmails] = useState("");
   const [attendeeEventId, setAttendeeEventId] = useState<string | null>(null);
   const [attendeeEventSearch, setAttendeeEventSearch] = useState("");
@@ -121,6 +125,12 @@ export default function AdminPage() {
   } = useForm<EventForm>({
     resolver: zodResolver(eventSchema),
     defaultValues: defaultEvent,
+  });
+
+  const membersQuery = useQuery<MemberRecord[]>({
+    queryKey: ["members"],
+    queryFn: fetchMembers,
+    staleTime: 60_000,
   });
 
   const adminQuery = useQuery<AdminData>({
@@ -230,22 +240,45 @@ export default function AdminPage() {
 
   const handleAddAttendee = async () => {
     if (!attendeeEventId || !attendeeInput.trim()) return;
+
+    // Check if already added locally first
+    const currentEvent = events.find((e) => e.id === attendeeEventId);
+    if (!currentEvent) return;
+
     setSaving(true);
     setMessage(null);
     try {
-      await addAttendee(attendeeEventId, attendeeInput.trim());
+      const rawInput = attendeeInput.trim();
+      const userId = rawInput.includes("@") ? await findUserIdByEmail(rawInput) : rawInput;
+      
+      if (!userId) {
+        setMessage("User not found for that email.");
+        return;
+      }
+
+      if (currentEvent.attendees.some((a) => a.id === userId)) {
+        setMessage("User is already an attendee.");
+        return;
+      }
+
+      await addAttendee(attendeeEventId, userId);
       setEvents((prev) =>
         prev.map((evt) =>
           evt.id === attendeeEventId
             ? {
                 ...evt,
                 attendeesCount: evt.attendeesCount + 1,
-                attendees: [...evt.attendees, { id: attendeeInput.trim(), name: attendeeInput.trim(), email: "" }],
+                attendees: [
+                  ...evt.attendees,
+                  { id: userId, name: userId, email: rawInput.includes("@") ? rawInput : "" },
+                ],
               }
             : evt
         )
       );
       setAttendeeInput("");
+      setAttendeeMemberSearch("");
+      setAttendeeMemberSuggestions([]);
       setAttendeeEventId(null);
       setMessage("Attendee added.");
     } catch (err) {
@@ -258,6 +291,10 @@ export default function AdminPage() {
 
   const handleAddAttendeesByEmail = async () => {
     if (!attendeeEventId || !attendeeEmails.trim()) return;
+
+    const currentEvent = events.find((e) => e.id === attendeeEventId);
+    if (!currentEvent) return;
+
     setSaving(true);
     setMessage(null);
     try {
@@ -266,23 +303,32 @@ export default function AdminPage() {
         .split(/[ ,]+/)
         .map((e) => e.trim())
         .filter(Boolean);
-      const added = await addAttendeesByEmail(attendeeEventId, emails);
-      setEvents((prev) =>
-        prev.map((evt) =>
-          evt.id === attendeeEventId
-            ? {
-                ...evt,
-                attendeesCount: evt.attendeesCount + added.length,
-                attendees: [
-                  ...evt.attendees,
-                  ...added.map((id) => ({ id, name: id, email: "" })),
-                ],
-              }
-            : evt
-        )
+      const foundIds = await addAttendeesByEmail(attendeeEventId, emails);
+      
+      const newIds = foundIds.filter(
+        (id) => !currentEvent.attendees.some((existing) => existing.id === id)
       );
-      setAttendeeEmails("");
-      setMessage(`Added ${added.length} attendees by email.`);
+
+      if (newIds.length === 0) {
+        setMessage("All users were already attendees.");
+      } else {
+        setEvents((prev) =>
+          prev.map((evt) =>
+            evt.id === attendeeEventId
+              ? {
+                  ...evt,
+                  attendeesCount: evt.attendeesCount + newIds.length,
+                  attendees: [
+                    ...evt.attendees,
+                    ...newIds.map((id) => ({ id, name: id, email: "" })),
+                  ],
+                }
+              : evt
+          )
+        );
+        setAttendeeEmails("");
+        setMessage(`Added ${newIds.length} new attendees.`);
+      }
     } catch (err) {
       console.error(err);
       setMessage("Failed to add attendees by email.");
@@ -326,38 +372,6 @@ export default function AdminPage() {
       }
       return next;
     });
-  };
-
-  const addAttendeeByEmail = async () => {
-    if (!attendeeEventId || !attendeeInput.trim()) return;
-    setSaving(true);
-    setMessage(null);
-    try {
-      const uid = await findUserIdByEmail(attendeeInput.trim());
-      if (!uid) {
-        setMessage("User not found for that email.");
-        return;
-      }
-      await addAttendee(attendeeEventId, uid);
-      setEvents((prev) =>
-        prev.map((evt) =>
-          evt.id === attendeeEventId
-            ? {
-                ...evt,
-                attendeesCount: evt.attendeesCount + 1,
-                attendees: [...evt.attendees, { id: uid, name: uid, email: attendeeInput.trim() }],
-              }
-            : evt
-        )
-      );
-      setAttendeeInput("");
-      setMessage("Attendee added by email.");
-    } catch (err) {
-      console.error(err);
-      setMessage("Failed to add attendee by email.");
-    } finally {
-      setSaving(false);
-    }
   };
 
   const bulkDeleteEvents = async () => {
@@ -425,6 +439,22 @@ export default function AdminPage() {
     setEventPage(0);
   }, [eventSearch, sortDir, sortKey, events.length]);
   const EVENT_SUGGESTION_LIMIT = 8;
+  useEffect(() => {
+    const term = attendeeMemberSearch.trim().toLowerCase();
+    if (!term) {
+      setAttendeeMemberSuggestions([]);
+      return;
+    }
+    const all = membersQuery.data || [];
+    const filtered = all
+      .filter(
+        (m) =>
+          `${m.firstName} ${m.lastName}`.toLowerCase().includes(term) ||
+          m.email.toLowerCase().includes(term)
+      )
+      .slice(0, 5);
+    setAttendeeMemberSuggestions(filtered);
+  }, [attendeeMemberSearch, membersQuery.data]);
   const attendeeEventSuggestions = useMemo(() => {
     const term = attendeeEventSearch.trim().toLowerCase();
     if (!term) return sortedEvents.slice(0, EVENT_SUGGESTION_LIMIT);
@@ -638,9 +668,8 @@ export default function AdminPage() {
                 <LoadingState variant="inline" title="Loading events…" />
               ) : (
                 <>
-                  <div className="overflow-x-auto">
-                    <Table>
-                      <TableHeader>
+                  <Table>
+                    <TableHeader>
                         <TableRow>
                           <TableHead>
                             <Checkbox
@@ -745,7 +774,6 @@ export default function AdminPage() {
                         )}
                       </TableBody>
                     </Table>
-                  </div>
                   {sortedEvents.length > EVENTS_PAGE_SIZE && (
                     <div className="mt-4 flex items-center justify-center gap-3 text-sm">
                       <Button
@@ -788,9 +816,8 @@ export default function AdminPage() {
               {loading ? (
                 <LoadingState variant="inline" title="Loading requests…" />
               ) : (
-                <div className="overflow-x-auto">
-                  <Table>
-                    <TableHeader>
+                <Table>
+                  <TableHeader>
                       <TableRow>
                         <TableHead>Event</TableHead>
                         <TableHead>User</TableHead>
@@ -840,7 +867,6 @@ export default function AdminPage() {
                       )}
                     </TableBody>
                   </Table>
-                </div>
               )}
             </CardContent>
           </Card>
@@ -852,19 +878,42 @@ export default function AdminPage() {
             </CardHeader>
             <CardContent className="space-y-4">
               <div className="flex flex-col gap-2 md:flex-row md:items-end md:gap-3">
-                <div className="flex flex-col gap-2 md:w-1/2">
-                  <label className="text-sm text-muted-foreground">User ID</label>
+                <div className="relative flex flex-col gap-2 md:w-1/2">
+                  <label className="text-sm text-muted-foreground">Member</label>
                   <Input
-                    value={attendeeInput}
-                    onChange={(e) => setAttendeeInput(e.target.value)}
-                    placeholder="Enter user ID"
+                    value={attendeeMemberSearch}
+                    onChange={(e) => {
+                      setAttendeeMemberSearch(e.target.value);
+                      setAttendeeInput(e.target.value);
+                    }}
+                    placeholder="Search member (name or email)"
                   />
+                  {attendeeMemberSearch.trim().length > 0 &&
+                    attendeeMemberSuggestions.length > 0 &&
+                    !attendeeMemberSuggestions.some(
+                      (m) => m.email.toLowerCase() === attendeeMemberSearch.trim().toLowerCase()
+                    ) && (
+                      <div className="absolute left-0 right-0 top-full z-10 mt-2 rounded-md border bg-background shadow-sm">
+                        {attendeeMemberSuggestions.map((m) => (
+                          <button
+                            key={m.id}
+                            className="w-full px-3 py-2 text-left hover:bg-muted"
+                            onClick={() => {
+                              setAttendeeMemberSearch(m.email || `${m.firstName} ${m.lastName}`.trim());
+                              setAttendeeInput(m.email || m.id);
+                              setAttendeeMemberSuggestions([]);
+                            }}
+                            type="button"
+                          >
+                            <div className="text-sm text-foreground">{`${m.firstName} ${m.lastName}`.trim() || "Member"}</div>
+                            <div className="text-xs text-muted-foreground">{m.email}</div>
+                          </button>
+                        ))}
+                      </div>
+                    )}
                 </div>
-                <div className="flex flex-col gap-2 md:w-1/2">
+                <div className="relative flex flex-col gap-2 md:w-1/2">
                   <label className="text-sm text-muted-foreground">Event</label>
-                  <p className="text-xs text-muted-foreground">
-                    Type to search events (suggestions capped for large lists).
-                  </p>
                   <Input
                     value={attendeeEventSearch}
                     onChange={(e) => {
@@ -873,8 +922,12 @@ export default function AdminPage() {
                     }}
                     placeholder="Search events by name"
                   />
-                  {attendeeEventSearch.trim().length > 0 && (
-                    <div className="rounded-md border bg-background shadow-sm">
+                  {attendeeEventSearch.trim().length > 0 &&
+                    !attendeeEventSuggestions.some(
+                      (evt) =>
+                        evt.name.toLowerCase() === attendeeEventSearch.trim().toLowerCase()
+                    ) && (
+                    <div className="absolute left-0 right-0 top-full z-10 mt-2 rounded-md border bg-background shadow-sm">
                       {attendeeEventSuggestions.map((evt) => (
                         <button
                           key={evt.id}
@@ -899,15 +952,8 @@ export default function AdminPage() {
                   <Button
                     onClick={handleAddAttendee}
                     disabled={saving || !attendeeInput || !attendeeEventId}
-                    variant="outline"
                   >
-                    Add by ID
-                  </Button>
-                  <Button
-                    onClick={addAttendeeByEmail}
-                    disabled={saving || !attendeeInput || !attendeeEventId}
-                  >
-                    Add by email
+                    Add attendee
                   </Button>
                 </div>
               </div>
@@ -929,9 +975,8 @@ export default function AdminPage() {
                 </Button>
               </div>
               {attendeeEventId && (
-                <div className="overflow-x-auto">
-                  <Table>
-                    <TableHeader>
+                <Table>
+                  <TableHeader>
                       <TableRow>
                         <TableHead>User</TableHead>
                         <TableHead>Email</TableHead>
@@ -965,7 +1010,6 @@ export default function AdminPage() {
                       )}
                     </TableBody>
                   </Table>
-                </div>
               )}
             </CardContent>
           </Card>

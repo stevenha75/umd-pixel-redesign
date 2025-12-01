@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { ProtectedRoute } from "@/components/ProtectedRoute";
 import { AdminLayout } from "@/components/admin/AdminLayout";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -23,6 +23,8 @@ import {
   updateActivity,
   findUserIdByEmail,
   fetchUserDetails,
+  fetchMembers,
+  MemberRecord,
 } from "@/lib/api";
 import { useAuth } from "@/context/AuthContext";
 
@@ -63,20 +65,15 @@ export default function ActivitiesPage() {
     }
   }, [activitiesQuery.data]);
 
-  const loadMultiplierDetails = async (activityId: string) => {
-    const activity = activities.find((a) => a.id === activityId);
-    if (!activity) return;
-    const ids = activity.multipliers.map((m) => m.userId);
-    const details = await fetchUserDetails(ids);
-    setMultiplierDetails(details);
-  };
-
   const [form, setForm] = useState({ name: "", type: "coffee_chat", pixels: 0 });
   const [editingId, setEditingId] = useState<string | null>(null);
   const [multiplierUser, setMultiplierUser] = useState("");
   const [multiplierValue, setMultiplierValue] = useState(1);
   const [targetActivity, setTargetActivity] = useState<string | null>(null);
   const [targetActivitySearch, setTargetActivitySearch] = useState("");
+  const [memberSearch, setMemberSearch] = useState("");
+  const [memberSuggestions, setMemberSuggestions] = useState<MemberRecord[]>([]);
+  const memberQuery = useQuery<MemberRecord[]>({ queryKey: ["members"], queryFn: fetchMembers });
   const [saving, setSaving] = useState(false);
   const activitySuggestions = useMemo(() => {
     const term = targetActivitySearch.trim().toLowerCase();
@@ -85,12 +82,79 @@ export default function ActivitiesPage() {
       .filter((act) => act.name.toLowerCase().includes(term))
       .slice(0, ACTIVITY_SUGGESTION_LIMIT);
   }, [activities, targetActivitySearch]);
+  useEffect(() => {
+    const term = memberSearch.trim().toLowerCase();
+    if (!term) {
+      setMemberSuggestions([]);
+      return;
+    }
+    const all = memberQuery.data || [];
+    const filtered = all
+      .filter(
+        (m) =>
+          `${m.firstName} ${m.lastName}`.toLowerCase().includes(term) ||
+          m.email.toLowerCase().includes(term)
+      )
+      .slice(0, 5);
+    setMemberSuggestions(filtered);
+  }, [memberSearch, memberQuery.data]);
+
+  const loadMultiplierDetails = useCallback(
+    async (activityId: string) => {
+      const activity = activities.find((a) => a.id === activityId);
+      if (!activity) return;
+
+      // Only fetch what we don't have
+      const idsToFetch = activity.multipliers
+        .map((m) => m.userId)
+        .filter((id) => !multiplierDetails.has(id));
+
+      if (idsToFetch.length === 0) return;
+
+      try {
+        const details = await fetchUserDetails(idsToFetch);
+        setMultiplierDetails((prev) => {
+          const next = new Map(prev);
+          details.forEach((v, k) => next.set(k, v));
+          // Mark missing IDs as loaded but unknown to prevent infinite loading loops
+          idsToFetch.forEach((id) => {
+            if (!next.has(id)) {
+              next.set(id, { name: "Unknown User", email: "" });
+            }
+          });
+          return next;
+        });
+      } catch (error) {
+        console.error("Failed to load multiplier details:", error);
+        // Mark these IDs as failed so we don't retry infinitely
+        setMultiplierDetails((prev) => {
+          const next = new Map(prev);
+          idsToFetch.forEach((id) => {
+            if (!next.has(id)) {
+              next.set(id, { name: "Error loading user", email: "" });
+            }
+          });
+          return next;
+        });
+      }
+    },
+    [activities, multiplierDetails]
+  );
+
+  // Derived state for the target activity's multiplier table
+  const targetActivityRecord = useMemo(
+    () => activities.find((a) => a.id === targetActivity),
+    [activities, targetActivity]
+  );
+  const targetMultipliers = targetActivityRecord?.multipliers || [];
+  const areMultipliersLoading = targetMultipliers.some((m) => !multiplierDetails.has(m.userId));
 
   useEffect(() => {
     if (!targetActivity) return;
     const matched = activities.find((act) => act.id === targetActivity);
     if (matched) setTargetActivitySearch(matched.name);
-  }, [targetActivity, activities]);
+    void loadMultiplierDetails(targetActivity);
+  }, [targetActivity, activities, loadMultiplierDetails]);
 
   const handleCreateOrUpdate = async () => {
     setSaving(true);
@@ -134,9 +198,22 @@ export default function ActivitiesPage() {
         setSaving(false);
         return;
       }
+
+      // Pre-fetch user details to prevent flicker
+      if (!multiplierDetails.has(userId)) {
+        const details = await fetchUserDetails([userId]);
+        setMultiplierDetails((prev) => {
+          const next = new Map(prev);
+          details.forEach((v, k) => next.set(k, v));
+          return next;
+        });
+      }
+
       await setActivityMultiplier(targetActivity, userId, value);
       await activitiesQuery.refetch();
       setMultiplierUser("");
+      setMemberSearch("");
+      setMemberSuggestions([]);
       setMultiplierValue(1);
     } finally {
       setSaving(false);
@@ -226,14 +303,13 @@ export default function ActivitiesPage() {
               </div>
             </CardHeader>
             <CardContent>
-              <div className="overflow-x-auto">
-                <Table>
+              <Table>
                   <TableHeader>
                     <TableRow>
                       <TableHead>Name</TableHead>
                       <TableHead>Type</TableHead>
                       <TableHead className="text-right">Pixels</TableHead>
-                      <TableHead className="text-right">Multipliers</TableHead>
+                      <TableHead className="text-right">Members</TableHead>
                       <TableHead className="text-right">Actions</TableHead>
                     </TableRow>
                   </TableHeader>
@@ -284,7 +360,6 @@ export default function ActivitiesPage() {
                     )}
                   </TableBody>
                 </Table>
-              </div>
               {hasMoreActivities && (
                 <div className="mt-4 flex justify-center">
                   <Button
@@ -307,9 +382,6 @@ export default function ActivitiesPage() {
             </CardHeader>
             <CardContent className="space-y-3">
               <div className="relative w-64">
-                <p className="text-xs text-muted-foreground pb-1">
-                  Type to search activities (suggestions capped).
-                </p>
                 <Input
                   value={targetActivitySearch}
                   onChange={(e) => {
@@ -318,16 +390,18 @@ export default function ActivitiesPage() {
                   }}
                   placeholder="Search activity"
                 />
-                {targetActivitySearch.trim().length > 0 && (
-                  <div className="absolute z-10 mt-2 w-full rounded-md border bg-background shadow-sm">
+                {targetActivitySearch.trim().length > 0 &&
+                  !activitySuggestions.some(
+                    (a) => a.name.toLowerCase() === targetActivitySearch.trim().toLowerCase()
+                  ) && (
+                  <div className="absolute left-0 top-full z-10 mt-2 w-full rounded-md border bg-background shadow-sm">
                     {activitySuggestions.map((act) => (
                       <button
                         key={act.id}
                         className="w-full px-3 py-2 text-left hover:bg-muted"
-                        onClick={async () => {
+                        onClick={() => {
                           setTargetActivity(act.id);
                           setTargetActivitySearch(act.name);
-                          await loadMultiplierDetails(act.id);
                         }}
                         type="button"
                       >
@@ -342,11 +416,39 @@ export default function ActivitiesPage() {
                 )}
               </div>
               <div className="grid gap-3 md:grid-cols-3">
-                <Input
-                  placeholder="User ID"
-                  value={multiplierUser}
-                  onChange={(e) => setMultiplierUser(e.target.value)}
-                />
+                <div className="relative">
+                  <Input
+                    placeholder="Search member (name or email)"
+                    value={memberSearch}
+                    onChange={(e) => {
+                      setMemberSearch(e.target.value);
+                      setMultiplierUser("");
+                    }}
+                  />
+                  {memberSearch.trim().length > 0 &&
+                    memberSuggestions.length > 0 &&
+                    !memberSuggestions.some(
+                      (m) => m.email.toLowerCase() === memberSearch.trim().toLowerCase()
+                    ) && (
+                      <div className="absolute left-0 top-full z-10 mt-2 w-full rounded-md border bg-background shadow-sm">
+                        {memberSuggestions.map((m) => (
+                          <button
+                            key={m.id}
+                            className="w-full px-3 py-2 text-left hover:bg-muted"
+                            onClick={() => {
+                              setMemberSearch(m.email);
+                              setMultiplierUser(m.email);
+                              setMemberSuggestions([]);
+                            }}
+                            type="button"
+                          >
+                            <div className="text-sm text-foreground">{`${m.firstName} ${m.lastName}`.trim() || "Member"}</div>
+                            <div className="text-xs text-muted-foreground">{m.email}</div>
+                          </button>
+                        ))}
+                      </div>
+                    )}
+                </div>
                 <Input
                   type="number"
                   min={1}
@@ -359,7 +461,9 @@ export default function ActivitiesPage() {
                 </Button>
               </div>
               {targetActivity && (
-                <div className="overflow-x-auto">
+                areMultipliersLoading ? (
+                  <LoadingState variant="inline" title="Loading members..." />
+                ) : (
                   <Table>
                     <TableHeader>
                       <TableRow>
@@ -369,24 +473,23 @@ export default function ActivitiesPage() {
                       </TableRow>
                     </TableHeader>
                     <TableBody>
-                      {activities
-                        .find((a) => a.id === targetActivity)
-                        ?.multipliers.map((m) => {
-                          const details = multiplierDetails.get(m.userId);
-                          return (
-                            <TableRow key={m.userId}>
-                              <TableCell className="text-foreground">
-                                {details?.name || m.userId}
-                              </TableCell>
-                              <TableCell className="text-muted-foreground">
-                                {details?.email || ""}
-                              </TableCell>
-                              <TableCell className="text-right text-muted-foreground">
-                                {m.multiplier}
-                              </TableCell>
-                            </TableRow>
-                          );
-                        }) ?? (
+                      {targetMultipliers.map((m) => {
+                        const details = multiplierDetails.get(m.userId);
+                        return (
+                          <TableRow key={m.userId}>
+                            <TableCell className="text-foreground">
+                              {details?.name || m.userId}
+                            </TableCell>
+                            <TableCell className="text-muted-foreground">
+                              {details?.email || ""}
+                            </TableCell>
+                            <TableCell className="text-right text-muted-foreground">
+                              {m.multiplier}
+                            </TableCell>
+                          </TableRow>
+                        );
+                      })}
+                      {targetMultipliers.length === 0 && (
                         <TableRow>
                           <TableCell colSpan={3} className="py-4 text-center text-muted-foreground">
                             No multipliers yet.
@@ -395,7 +498,7 @@ export default function ActivitiesPage() {
                       )}
                     </TableBody>
                   </Table>
-                </div>
+                )
               )}
             </CardContent>
           </Card>
