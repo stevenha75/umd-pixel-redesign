@@ -81,15 +81,11 @@ const defaultEvent = {
 
 export default function AdminPage() {
   const { user } = useAuth();
-  const [events, setEvents] = useState<EventRow[]>([]);
-  const [excused, setExcused] = useState<ExcusedRow[]>([]);
-  const [loading, setLoading] = useState(true);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
   const [message, setMessage] = useState<string | null>(null);
   const [sortKey, setSortKey] = useState<"date" | "name" | "pixels">("date");
   const [sortDir, setSortDir] = useState<"asc" | "desc">("desc");
-  const [currentSemesterId, setCurrentSemesterId] = useState<string | null>(null);
   const [attendeeInput, setAttendeeInput] = useState("");
   const [attendeeMemberSearch, setAttendeeMemberSearch] = useState("");
   const [attendeeMemberSuggestions, setAttendeeMemberSuggestions] = useState<MemberRecord[]>([]);
@@ -140,14 +136,10 @@ export default function AdminPage() {
     enabled: !!user,
   });
 
-  useEffect(() => {
-    setLoading(adminQuery.isLoading);
-    if (adminQuery.data) {
-      setEvents(adminQuery.data.events);
-      setExcused(adminQuery.data.excused);
-      setCurrentSemesterId(adminQuery.data.currentSemesterId);
-    }
-  }, [adminQuery.data, adminQuery.isLoading]);
+  const events = useMemo(() => adminQuery.data?.events ?? [], [adminQuery.data]);
+  const excused = useMemo(() => adminQuery.data?.excused ?? [], [adminQuery.data]);
+  const currentSemesterId = adminQuery.data?.currentSemesterId ?? null;
+  const loading = adminQuery.isPending;
 
   const resetForm = () => {
     reset(defaultEvent);
@@ -158,11 +150,8 @@ export default function AdminPage() {
     setSaving(true);
     setMessage(null);
     try {
-      const created = await createEventApi(values as EventInput, currentSemesterId);
-      setEvents((prev) => [
-        { ...created, date: new Date(created.date).toLocaleDateString() },
-        ...prev,
-      ]);
+      await createEventApi(values as EventInput, currentSemesterId);
+      await adminQuery.refetch();
       resetForm();
       setMessage("Event created.");
     } catch (err) {
@@ -177,12 +166,7 @@ export default function AdminPage() {
     setSaving(true);
     setMessage(null);
     try {
-      const result = await adminQuery.refetch();
-      if (result.data) {
-        setEvents(result.data.events);
-        setExcused(result.data.excused);
-        setCurrentSemesterId(result.data.currentSemesterId);
-      }
+      await adminQuery.refetch();
       setMessage("Refreshed events.");
     } catch (err) {
       console.error(err);
@@ -197,9 +181,7 @@ export default function AdminPage() {
     setMessage(null);
     try {
       await apiUpdateExcusedStatus(row.eventId, row.id, status);
-      setExcused((prev) =>
-        prev.map((r) => (r.id === row.id ? { ...r, status } : r))
-      );
+      await adminQuery.refetch();
       setMessage(`Marked as ${status}.`);
     } catch (err) {
       console.error(err);
@@ -225,7 +207,7 @@ export default function AdminPage() {
     setMessage(null);
     try {
       await deleteEventById(evt.id);
-      setEvents((prev) => prev.filter((e) => e.id !== evt.id));
+      await adminQuery.refetch();
       setMessage("Event deleted.");
       if (editingId === evt.id) {
         resetForm();
@@ -262,20 +244,7 @@ export default function AdminPage() {
       }
 
       await addAttendee(attendeeEventId, userId);
-      setEvents((prev) =>
-        prev.map((evt) =>
-          evt.id === attendeeEventId
-            ? {
-                ...evt,
-                attendeesCount: evt.attendeesCount + 1,
-                attendees: [
-                  ...evt.attendees,
-                  { id: userId, name: userId, email: rawInput.includes("@") ? rawInput : "" },
-                ],
-              }
-            : evt
-        )
-      );
+      await adminQuery.refetch();
       setAttendeeInput("");
       setAttendeeMemberSearch("");
       setAttendeeMemberSuggestions([]);
@@ -312,20 +281,7 @@ export default function AdminPage() {
       if (newIds.length === 0) {
         setMessage("All users were already attendees.");
       } else {
-        setEvents((prev) =>
-          prev.map((evt) =>
-            evt.id === attendeeEventId
-              ? {
-                  ...evt,
-                  attendeesCount: evt.attendeesCount + newIds.length,
-                  attendees: [
-                    ...evt.attendees,
-                    ...newIds.map((id) => ({ id, name: id, email: "" })),
-                  ],
-                }
-              : evt
-          )
-        );
+        await adminQuery.refetch();
         setAttendeeEmails("");
         setMessage(`Added ${newIds.length} new attendees.`);
       }
@@ -342,17 +298,7 @@ export default function AdminPage() {
     setMessage(null);
     try {
       await removeAttendee(eventId, userId);
-      setEvents((prev) =>
-        prev.map((evt) =>
-          evt.id === eventId
-            ? {
-                ...evt,
-                attendeesCount: Math.max(0, evt.attendeesCount - 1),
-                attendees: evt.attendees.filter((a) => a.id !== userId),
-              }
-            : evt
-        )
-      );
+      await adminQuery.refetch();
       setMessage("Attendee removed.");
     } catch (err) {
       console.error(err);
@@ -380,7 +326,7 @@ export default function AdminPage() {
     setMessage(null);
     try {
       await Promise.all(Array.from(selectedEvents).map((id) => deleteEventById(id)));
-      setEvents((prev) => prev.filter((e) => !selectedEvents.has(e.id)));
+      await adminQuery.refetch();
       setSelectedEvents(new Set());
       setMessage("Events deleted.");
     } catch (err) {
@@ -399,11 +345,7 @@ export default function AdminPage() {
       await Promise.all(
         Array.from(selectedEvents).map((id) => updateEventPixels(id, Number(bulkPixels)))
       );
-      setEvents((prev) =>
-        prev.map((evt) =>
-          selectedEvents.has(evt.id) ? { ...evt, pixels: Number(bulkPixels) } : evt
-        )
-      );
+      await adminQuery.refetch();
       setBulkPixels("");
       setMessage("Pixels updated.");
     } catch (err) {
@@ -483,21 +425,8 @@ export default function AdminPage() {
     setSaving(true);
     setMessage(null);
     try {
-      const updated = await updateEventApi(editingId, values as EventInput);
-      const dateValue = updated.date ? new Date(updated.date) : new Date();
-      setEvents((prev) =>
-        prev.map((evt) =>
-          evt.id === editingId
-            ? {
-                ...evt,
-                name: updated.name,
-                type: updated.type,
-                pixels: updated.pixels,
-                date: dateValue.toLocaleDateString(),
-              }
-            : evt
-        )
-      );
+      await updateEventApi(editingId, values as EventInput);
+      await adminQuery.refetch();
       resetForm();
       setMessage("Event updated.");
     } catch (err) {

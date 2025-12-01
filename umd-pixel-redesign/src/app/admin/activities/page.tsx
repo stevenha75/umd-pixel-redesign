@@ -149,8 +149,22 @@ export default function ActivitiesPage() {
     () => activities.find((a) => a.id === targetActivity),
     [activities, targetActivity]
   );
-  const targetMultipliers = targetActivityRecord?.multipliers || [];
+  const targetMultipliers = useMemo(
+    () => targetActivityRecord?.multipliers || [],
+    [targetActivityRecord]
+  );
   const areMultipliersLoading = targetMultipliers.some((m) => !multiplierDetails.has(m.userId));
+
+  const filteredMultipliers = useMemo(() => {
+    const term = memberSearch.trim().toLowerCase();
+    if (!term) return targetMultipliers;
+    return targetMultipliers.filter((m) => {
+      const details = multiplierDetails.get(m.userId);
+      const name = details?.name.toLowerCase() || "";
+      const email = details?.email.toLowerCase() || "";
+      return name.includes(term) || email.includes(term);
+    });
+  }, [targetMultipliers, memberSearch, multiplierDetails]);
 
   useEffect(() => {
     if (!targetActivity) return;
@@ -551,7 +565,7 @@ export default function ActivitiesPage() {
                       </TableRow>
                     </TableHeader>
                     <TableBody>
-                      {targetMultipliers.map((m) => {
+                      {filteredMultipliers.map((m) => {
                         const details = multiplierDetails.get(m.userId);
                         return (
                           <TableRow key={m.userId}>
@@ -567,10 +581,12 @@ export default function ActivitiesPage() {
                           </TableRow>
                         );
                       })}
-                      {targetMultipliers.length === 0 && (
+                      {filteredMultipliers.length === 0 && (
                         <TableRow>
                           <TableCell colSpan={3} className="py-4 text-center text-muted-foreground">
-                            No multipliers yet.
+                            {targetMultipliers.length === 0
+                              ? "No multipliers yet."
+                              : "No matching members found."}
                           </TableCell>
                         </TableRow>
                       )}
