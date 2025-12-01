@@ -74,7 +74,7 @@ export default function MembersPage() {
       .filter((evt) => evt.name.toLowerCase().includes(term))
       .slice(0, EVENT_SUGGESTION_LIMIT);
   }, [adminQuery.data?.events, eventTargetSearch]);
-  const MEMBERS_PAGE_SIZE = 25;
+  const MEMBERS_PAGE_SIZE = 15;
 
   useEffect(() => {
     if (!eventTarget) return;

@@ -1,57 +1,32 @@
 {
-    "indexes": [
+  "indexes": [
+    {
+      "collectionId": "events",
+      "queryScope": "COLLECTION",
+      "fields": [
         {
-            "collectionGroup": "excused_absences",
-            "queryScope": "COLLECTION_GROUP",
-            "fields": [
-                {
-                    "fieldPath": "userId",
-                    "order": "ASCENDING"
-                },
-                {
-                    "fieldPath": "status",
-                    "order": "ASCENDING"
-                }
-            ]
+          "fieldPath": "semesterId",
+          "order": "ASCENDING"
         },
         {
-            "collectionGroup": "excused_absences",
-            "queryScope": "COLLECTION_GROUP",
-            "fields": [
-                {
-                    "fieldPath": "createdAt",
-                    "order": "DESCENDING"
-                }
-            ]
-        },
-        {
-            "collectionId": "events",
-            "queryScope": "COLLECTION",
-            "fields": [
-                {
-                    "fieldPath": "semesterId",
-                    "order": "ASCENDING"
-                },
-                {
-                    "fieldPath": "date",
-                    "order": "DESCENDING"
-                }
-            ]
-        },
-        {
-            "collectionId": "activities",
-            "queryScope": "COLLECTION",
-            "fields": [
-                {
-                    "fieldPath": "semesterId",
-                    "order": "ASCENDING"
-                },
-                {
-                    "fieldPath": "name",
-                    "order": "ASCENDING"
-                }
-            ]
+          "fieldPath": "date",
+          "order": "DESCENDING"
         }
-    ],
-    "fieldOverrides": []
+      ]
+    },
+    {
+      "collectionId": "activities",
+      "queryScope": "COLLECTION",
+      "fields": [
+        {
+          "fieldPath": "semesterId",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "name",
+          "order": "ASCENDING"
+        }
+      ]
+    }
+  ]
 }
