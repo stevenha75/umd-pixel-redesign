@@ -23,8 +23,9 @@ export default function SettingsPage() {
   const [isLeadershipOn, setIsLeadershipOn] = useState(false);
   const [saving, setSaving] = useState(false);
   const [adminEmail, setAdminEmail] = useState("");
-  const [emailSuggestions, setEmailSuggestions] = useState<string[]>([]);
+  const [emailSuggestions, setEmailSuggestions] = useState<{ email: string; name: string }[]>([]);
   const [loadingSuggestions, setLoadingSuggestions] = useState(false);
+  const SUGGESTION_LIMIT = 8;
 
   const settingsQuery = useQuery({
     queryKey: ["admin-settings", user?.uid],
@@ -74,13 +75,19 @@ export default function SettingsPage() {
           where("email", ">=", term),
           where("email", "<", `${term}\uf8ff`),
           orderBy("email", "asc"),
-          limit(10)
+          limit(SUGGESTION_LIMIT)
         )
       );
-      const emails = snap.docs
-        .map((d) => (d.data().email || d.data().slackEmail || "") as string)
-        .filter(Boolean);
-      setEmailSuggestions(Array.from(new Set(emails)));
+      const suggestions = snap.docs
+        .map((d) => {
+          const data = d.data();
+          const email = (data.email || data.slackEmail || "") as string;
+          const name = `${data.firstName || ""} ${data.lastName || ""}`.trim();
+          return email ? { email, name: name || "Member" } : null;
+        })
+        .filter(Boolean) as { email: string; name: string }[];
+      const uniqueByEmail = Array.from(new Map(suggestions.map((s) => [s.email, s])).values());
+      setEmailSuggestions(uniqueByEmail);
     } catch (err) {
       console.error(err);
       setEmailSuggestions([]);
@@ -176,6 +183,9 @@ export default function SettingsPage() {
               <CardDescription>Grant admin to a user email.</CardDescription>
             </CardHeader>
             <CardContent className="space-y-3">
+              <p className="text-xs text-muted-foreground">
+                Type a user email to search; suggestions include names (showing up to {SUGGESTION_LIMIT} matches).
+              </p>
               <Input
                 value={adminEmail}
                 onChange={(e) => {
@@ -185,16 +195,17 @@ export default function SettingsPage() {
                 placeholder="User email"
                 type="email"
               />
-              {emailSuggestions.length > 0 && (
+              {(loadingSuggestions || emailSuggestions.length > 0) && (
                 <div className="rounded-md border bg-background shadow-sm">
-                  {emailSuggestions.map((email) => (
+                  {emailSuggestions.map((suggestion) => (
                     <button
-                      key={email}
-                      className="w-full px-3 py-2 text-left text-sm hover:bg-muted"
-                      onClick={() => setAdminEmail(email)}
+                      key={suggestion.email}
+                      className="flex w-full flex-col px-3 py-2 text-left hover:bg-muted"
+                      onClick={() => setAdminEmail(suggestion.email)}
                       type="button"
                     >
-                      {email}
+                      <span className="text-sm text-foreground">{suggestion.name}</span>
+                      <span className="text-xs text-muted-foreground">{suggestion.email}</span>
                     </button>
                   ))}
                   {loadingSuggestions && (
