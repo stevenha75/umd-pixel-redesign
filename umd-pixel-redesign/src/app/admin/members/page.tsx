@@ -256,32 +256,6 @@ export default function MembersPage() {
     });
   }, [selectedMember, adminQuery.data]);
 
-  const pixelHistory = useMemo(() => {
-    if (!memberEvents.length) return null;
-    const sorted = [...memberEvents].sort(
-      (a, b) => new Date(a.date).getTime() - new Date(b.date).getTime()
-    );
-    let total = 0;
-    const points = sorted.map((evt) => {
-      if (evt.status === "Present" && evt.pixels > 0) {
-        total += evt.pixels;
-      }
-      return { date: evt.date, total };
-    });
-    return {
-      labels: points.map((p) => p.date),
-      datasets: [
-        {
-          label: "Pixels over time",
-          data: points.map((p) => p.total),
-          borderColor: "#000",
-          backgroundColor: "rgba(0,0,0,0.1)",
-          tension: 0.3,
-        },
-      ],
-    };
-  }, [memberEvents]);
-
   const cycleStatus = async (evtId: string, current: string, type: string) => {
     if (!selectedMember) return;
     const mandatory = ["GBM", "other_mandatory"].includes(type);
@@ -606,18 +580,6 @@ export default function MembersPage() {
                         </Button>
                       </div>
                     </div>
-                    {pixelHistory && (
-                      <div className="rounded-lg border border-border p-3">
-                        <Line
-                          data={pixelHistory}
-                          options={{
-                            responsive: true,
-                            plugins: { legend: { display: false } },
-                            scales: { y: { beginAtZero: true } },
-                          }}
-                        />
-                      </div>
-                    )}
                     <div className="pt-4">
                       <div className="text-sm font-semibold text-foreground">Events</div>
                       <div className="overflow-x-auto">
