@@ -327,6 +327,8 @@ export async function fetchDashboardData(userId: string): Promise<DashboardData>
 
   let leaderboard: LeaderboardRow[] = [];
   let leaderboardCursor: LeaderboardCursor | null = null;
+  let rank: number | undefined;
+
   if (leaderboardEnabled) {
     const leaderboardSnap = await getDocs(buildLeaderboardQuery());
     leaderboard = leaderboardSnap.docs.map((docSnap) => mapLeaderboardRow(docSnap));
@@ -334,11 +336,17 @@ export async function fetchDashboardData(userId: string): Promise<DashboardData>
       leaderboardSnap.docs.length === LEADERBOARD_PAGE_SIZE
         ? makeLeaderboardCursor(leaderboardSnap.docs[leaderboardSnap.docs.length - 1])
         : null;
+
+    const userPixels = pixelTotal;
+    const rankQuery = query(
+      collection(db, "users"), 
+      where("pixelCached", ">", userPixels)
+    );
+    const rankSnap = await getCountFromServer(rankQuery);
+    rank = rankSnap.data().count + 1;
   }
 
   const name = `${userData.firstName || ""} ${userData.lastName || ""}`.trim() || "Member";
-  const rankIndex = leaderboard.findIndex((row) => row.id === userId);
-  const rank = rankIndex >= 0 ? rankIndex + 1 : undefined;
 
   return {
     userName: name,

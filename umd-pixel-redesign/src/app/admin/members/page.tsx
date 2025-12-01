@@ -40,8 +40,17 @@ import {
     DialogTitle,
     DialogTrigger,
 } from "@/components/ui/dialog";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 import { Badge } from "@/components/ui/badge";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { ChevronDown } from "lucide-react";
 
 export default function MembersPage() {
   const { user } = useAuth();
@@ -62,6 +71,8 @@ export default function MembersPage() {
 
   // Slack State
   const [slackOpen, setSlackOpen] = useState(false);
+  const [addToEventOpen, setAddToEventOpen] = useState(false);
+  const [addToActivityOpen, setAddToActivityOpen] = useState(false);
   const [slackUsers, setSlackUsers] = useState<SlackUser[]>([]);
   const [slackSearch, setSlackSearch] = useState("");
   const [loadingSlack, setLoadingSlack] = useState(false);
@@ -470,91 +481,149 @@ export default function MembersPage() {
                   Clear
                 </Button>
                 <span className="text-muted-foreground">{selected.size} selected</span>
-                <div className="relative w-64">
-                  <Input
-                    value={eventTargetSearch}
-                    onChange={(e) => {
-                      setEventTargetSearch(e.target.value);
-                      setEventTarget("");
-                    }}
-                    placeholder="Search events to add"
-                  />
-                  {eventTargetSearch.trim().length > 0 &&
-                    !eventSuggestions.some(
-                      (evt) =>
-                        evt.name.toLowerCase() === eventTargetSearch.trim().toLowerCase()
-                    ) && (
-                    <div className="absolute left-0 right-0 top-full z-10 mt-2 w-full rounded-md border bg-background shadow-sm">
-                      {eventSuggestions.map((evt) => (
-                        <button
-                          key={evt.id}
-                          className="w-full px-3 py-2 text-left hover:bg-muted"
-                          onClick={() => {
-                            setEventTarget(evt.id);
-                            setEventTargetSearch(evt.name);
-                          }}
-                          type="button"
-                        >
-                          <div className="text-sm text-foreground">{evt.name}</div>
-                          <div className="text-xs text-muted-foreground">{evt.date}</div>
-                        </button>
-                      ))}
-                      {!eventSuggestions.length && (
-                        <div className="px-3 py-2 text-xs text-muted-foreground">No matches.</div>
-                      )}
-                    </div>
-                  )}
-                </div>
-                <Button onClick={handleAddToEvent} disabled={saving || selected.size === 0 || !eventTarget}>
-                  Add to event
-                </Button>
+                
+                <DropdownMenu>
+                  <DropdownMenuTrigger asChild>
+                    <Button variant="outline" disabled={selected.size === 0}>
+                      Bulk Actions <ChevronDown className="ml-2 h-4 w-4" />
+                    </Button>
+                  </DropdownMenuTrigger>
+                  <DropdownMenuContent align="start" className="w-56">
+                    <DropdownMenuLabel>Bulk Operations</DropdownMenuLabel>
+                    <DropdownMenuSeparator />
+                    <DropdownMenuItem onSelect={() => setAddToEventOpen(true)}>
+                       Add to Event...
+                    </DropdownMenuItem>
+                    <DropdownMenuItem onSelect={() => setAddToActivityOpen(true)}>
+                       Add to Activity...
+                    </DropdownMenuItem>
+                    <DropdownMenuSeparator />
+                    <DropdownMenuItem 
+                      className="text-destructive focus:text-destructive focus:bg-destructive/10"
+                      onClick={handleDeleteSelected}
+                      disabled={saving}
+                    >
+                      Delete Selected
+                    </DropdownMenuItem>
+                  </DropdownMenuContent>
+                </DropdownMenu>
 
-                <div className="relative w-64">
-                  <Input
-                    value={activityTargetSearch}
-                    onChange={(e) => {
-                      setActivityTargetSearch(e.target.value);
-                      setActivityTarget("");
-                    }}
-                    placeholder="Search activities to add"
-                  />
-                  {activityTargetSearch.trim().length > 0 &&
-                    !activitySuggestions.some(
-                      (act) =>
-                        act.name.toLowerCase() === activityTargetSearch.trim().toLowerCase()
-                    ) && (
-                    <div className="absolute left-0 right-0 top-full z-10 mt-2 w-full rounded-md border bg-background shadow-sm">
-                      {activitySuggestions.map((act) => (
-                        <button
-                          key={act.id}
-                          className="w-full px-3 py-2 text-left hover:bg-muted"
-                          onClick={() => {
-                            setActivityTarget(act.id);
-                            setActivityTargetSearch(act.name);
+                <Dialog open={addToEventOpen} onOpenChange={setAddToEventOpen}>
+                  <DialogContent>
+                    <DialogHeader>
+                      <DialogTitle>Add to Event</DialogTitle>
+                      <DialogDescription>Add {selected.size} selected members to an event.</DialogDescription>
+                    </DialogHeader>
+                    <div className="flex flex-col gap-4 py-4">
+                      <div className="relative w-full">
+                        <Input
+                          value={eventTargetSearch}
+                          onChange={(e) => {
+                            setEventTargetSearch(e.target.value);
+                            setEventTarget("");
                           }}
-                          type="button"
-                        >
-                          <div className="text-sm text-foreground">{act.name}</div>
-                          <div className="text-xs text-muted-foreground">{act.type}</div>
-                        </button>
-                      ))}
-                      {!activitySuggestions.length && (
-                        <div className="px-3 py-2 text-xs text-muted-foreground">No matches.</div>
-                      )}
+                          placeholder="Search event..."
+                        />
+                        {eventTargetSearch.trim().length > 0 &&
+                          !eventSuggestions.some(
+                            (evt) =>
+                              evt.name.toLowerCase() === eventTargetSearch.trim().toLowerCase()
+                          ) && (
+                          <div className="absolute left-0 right-0 top-full z-10 mt-1 max-h-40 overflow-y-auto rounded-md border bg-background shadow-sm">
+                            {eventSuggestions.map((evt) => (
+                              <button
+                                key={evt.id}
+                                className="w-full px-3 py-2 text-left text-sm hover:bg-muted"
+                                onClick={() => {
+                                  setEventTarget(evt.id);
+                                  setEventTargetSearch(evt.name);
+                                }}
+                                type="button"
+                              >
+                                <div className="font-medium">{evt.name}</div>
+                                <div className="text-xs text-muted-foreground">{evt.date}</div>
+                              </button>
+                            ))}
+                            {!eventSuggestions.length && (
+                              <div className="px-3 py-2 text-sm text-muted-foreground">No matches.</div>
+                            )}
+                          </div>
+                        )}
+                      </div>
+                      <div className="flex justify-end gap-2">
+                         <Button variant="outline" onClick={() => setAddToEventOpen(false)}>Cancel</Button>
+                         <Button 
+                            onClick={async () => {
+                                await handleAddToEvent();
+                                setAddToEventOpen(false);
+                            }} 
+                            disabled={saving || !eventTarget}
+                          >
+                            Add Members
+                          </Button>
+                      </div>
                     </div>
-                  )}
-                </div>
-                <Button onClick={handleAddToActivity} disabled={saving || selected.size === 0 || !activityTarget}>
-                  Add to activity
-                </Button>
+                  </DialogContent>
+                </Dialog>
 
-                <Button
-                  variant="destructive"
-                  onClick={handleDeleteSelected}
-                  disabled={saving || selected.size === 0}
-                >
-                  Delete selected
-                </Button>
+                <Dialog open={addToActivityOpen} onOpenChange={setAddToActivityOpen}>
+                  <DialogContent>
+                    <DialogHeader>
+                      <DialogTitle>Add to Activity</DialogTitle>
+                      <DialogDescription>Add {selected.size} selected members to an activity.</DialogDescription>
+                    </DialogHeader>
+                    <div className="flex flex-col gap-4 py-4">
+                      <div className="relative w-full">
+                        <Input
+                          value={activityTargetSearch}
+                          onChange={(e) => {
+                            setActivityTargetSearch(e.target.value);
+                            setActivityTarget("");
+                          }}
+                          placeholder="Search activity..."
+                        />
+                        {activityTargetSearch.trim().length > 0 &&
+                          !activitySuggestions.some(
+                            (act) =>
+                              act.name.toLowerCase() === activityTargetSearch.trim().toLowerCase()
+                          ) && (
+                          <div className="absolute left-0 right-0 top-full z-10 mt-1 max-h-40 overflow-y-auto rounded-md border bg-background shadow-sm">
+                            {activitySuggestions.map((act) => (
+                              <button
+                                key={act.id}
+                                className="w-full px-3 py-2 text-left text-sm hover:bg-muted"
+                                onClick={() => {
+                                  setActivityTarget(act.id);
+                                  setActivityTargetSearch(act.name);
+                                }}
+                                type="button"
+                              >
+                                <div className="font-medium">{act.name}</div>
+                                <div className="text-xs text-muted-foreground">{act.type}</div>
+                              </button>
+                            ))}
+                            {!activitySuggestions.length && (
+                              <div className="px-3 py-2 text-sm text-muted-foreground">No matches.</div>
+                            )}
+                          </div>
+                        )}
+                      </div>
+                      <div className="flex justify-end gap-2">
+                         <Button variant="outline" onClick={() => setAddToActivityOpen(false)}>Cancel</Button>
+                         <Button 
+                            onClick={async () => {
+                                await handleAddToActivity();
+                                setAddToActivityOpen(false);
+                            }} 
+                            disabled={saving || !activityTarget}
+                          >
+                            Add Members
+                          </Button>
+                      </div>
+                    </div>
+                  </DialogContent>
+                </Dialog>
+
                 {message && <span className="text-muted-foreground">{message}</span>}
               </div>
               <Table>
