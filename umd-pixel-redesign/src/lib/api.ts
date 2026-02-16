@@ -97,6 +97,13 @@ export type ActivityRecord = {
   multipliers: { userId: string; multiplier: number }[];
 };
 
+export type ActivityUpdateInput = {
+  name?: string;
+  type?: string;
+  pixels?: number;
+  semesterId?: string;
+};
+
 export type ActivityCursor = {
   name: string;
   id: string;
@@ -572,13 +579,17 @@ export async function createActivity(input: {
   return { id: docRef.id, ...input, multipliers: [] } as ActivityRecord;
 }
 
-export async function updateActivity(activityId: string, data: Partial<ActivityRecord>) {
-  await updateDoc(doc(db, "activities", activityId), {
-    name: data.name,
-    type: data.type,
-    pixels: data.pixels,
-    semesterId: data.semesterId,
-  });
+export async function updateActivity(activityId: string, data: ActivityUpdateInput) {
+  const updates: ActivityUpdateInput = {};
+
+  if (data.name !== undefined) updates.name = data.name;
+  if (data.type !== undefined) updates.type = data.type;
+  if (data.pixels !== undefined) updates.pixels = data.pixels;
+  if (data.semesterId !== undefined) updates.semesterId = data.semesterId;
+
+  if (Object.keys(updates).length === 0) return;
+
+  await updateDoc(doc(db, "activities", activityId), updates);
 }
 
 export async function deleteActivity(activityId: string) {
