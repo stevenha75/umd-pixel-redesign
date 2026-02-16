@@ -75,6 +75,7 @@ export default function MembersPage() {
   const [addToActivityOpen, setAddToActivityOpen] = useState(false);
   const [slackUsers, setSlackUsers] = useState<SlackUser[]>([]);
   const [slackSearch, setSlackSearch] = useState("");
+  const [selectedSlackUsers, setSelectedSlackUsers] = useState<Set<string>>(new Set());
   const [loadingSlack, setLoadingSlack] = useState(false);
 
   const membersQuery = useQuery<MemberRecord[]>({ queryKey: ["members"], queryFn: fetchMembers });
@@ -214,13 +215,21 @@ export default function MembersPage() {
       }
   };
 
-  const handleAddSlackUser = async (user: SlackUser) => {
+  const handleAddSelectedSlackUsers = async () => {
+      const usersToAdd = slackUsers.filter((u) => selectedSlackUsers.has(u.id));
+      if (usersToAdd.length === 0) return;
+
       setSaving(true);
       try {
-          await addSlackMember(user);
+          await Promise.all(usersToAdd.map((u) => addSlackMember(u)));
           await membersQuery.refetch();
+          setSelectedSlackUsers(new Set());
           setSlackOpen(false);
-          setMessage("Member added successfully.");
+          setMessage(
+            usersToAdd.length === 1
+              ? "1 member added successfully."
+              : `${usersToAdd.length} members added successfully.`
+          );
       } catch (error) {
           console.error(error);
           setMessage(error instanceof Error ? error.message : "Failed to add member.");
@@ -278,6 +287,43 @@ export default function MembersPage() {
   const visibleSlackUsers = useMemo(() => {
       return filteredSlackUsers.slice(0, 50);
   }, [filteredSlackUsers]);
+
+  const existingSlackIds = useMemo(
+    () => new Set(members.map((m) => m.slackId).filter(Boolean) as string[]),
+    [members]
+  );
+
+  const selectableVisibleSlackUsers = useMemo(
+    () => visibleSlackUsers.filter((u) => !existingSlackIds.has(u.id)),
+    [visibleSlackUsers, existingSlackIds]
+  );
+
+  const allVisibleSelected =
+    selectableVisibleSlackUsers.length > 0 &&
+    selectableVisibleSlackUsers.every((u) => selectedSlackUsers.has(u.id));
+
+  const someVisibleSelected =
+    !allVisibleSelected && selectableVisibleSlackUsers.some((u) => selectedSlackUsers.has(u.id));
+
+  const toggleSlackSelection = (id: string, checked: boolean) => {
+    setSelectedSlackUsers((prev) => {
+      const next = new Set(prev);
+      if (checked) next.add(id);
+      else next.delete(id);
+      return next;
+    });
+  };
+
+  const toggleSelectAllVisibleSlackUsers = (checked: boolean) => {
+    setSelectedSlackUsers((prev) => {
+      const next = new Set(prev);
+      selectableVisibleSlackUsers.forEach((user) => {
+        if (checked) next.add(user.id);
+        else next.delete(user.id);
+      });
+      return next;
+    });
+  };
 
 
   const [message, setMessage] = useState<string | null>(null);
@@ -705,7 +751,10 @@ export default function MembersPage() {
               <CardContent className="space-y-3">
                   <Dialog open={slackOpen} onOpenChange={(open) => {
                       setSlackOpen(open);
-                      if (open) loadSlackUsers();
+                      if (open) {
+                        setSelectedSlackUsers(new Set());
+                        loadSlackUsers();
+                      }
                   }}>
                       <DialogTrigger asChild>
                           <Button variant="outline" className="w-full h-12 justify-start px-4 text-left font-normal">
@@ -720,10 +769,10 @@ export default function MembersPage() {
                       </DialogTrigger>
                       <DialogContent className="max-w-md h-[600px] flex flex-col">
                           <DialogHeader>
-                              <DialogTitle>Select Slack Member</DialogTitle>
-                              <DialogDescription>
-                                  Search for a user in the Slack workspace to add them to the database.
-                              </DialogDescription>
+                          <DialogTitle>Select Slack Members</DialogTitle>
+                          <DialogDescription>
+                                  Search and select multiple workspace users to add them in one action.
+                          </DialogDescription>
                           </DialogHeader>
                           <div className="flex flex-col gap-4 flex-1 min-h-0 py-2">
                               <Input 
@@ -732,6 +781,21 @@ export default function MembersPage() {
                                   onChange={e => setSlackSearch(e.target.value)}
                                   autoFocus
                               />
+                              <div className="flex items-center justify-between rounded-md border px-3 py-2 text-sm">
+                                  <div className="flex items-center gap-2">
+                                      <Checkbox
+                                        checked={allVisibleSelected ? true : someVisibleSelected ? "indeterminate" : false}
+                                        onCheckedChange={(checked) => toggleSelectAllVisibleSlackUsers(checked === true)}
+                                        disabled={selectableVisibleSlackUsers.length === 0}
+                                      />
+                                      <span className="text-muted-foreground">
+                                        Select visible ({selectableVisibleSlackUsers.length})
+                                      </span>
+                                  </div>
+                                  <span className="text-xs text-muted-foreground">
+                                    {selectedSlackUsers.size} selected
+                                  </span>
+                              </div>
                               <div className="flex-1 overflow-y-auto border rounded-md">
                                   {loadingSlack ? (
                                       <div className="flex h-full items-center justify-center p-4 text-muted-foreground">
@@ -741,12 +805,17 @@ export default function MembersPage() {
                                       <div className="divide-y">
                                           {visibleSlackUsers.map(u => {
                                               const exists = members.some(m => m.email === u.email || m.slackId === u.id);
+                                              const isSelected = selectedSlackUsers.has(u.id);
                                               return (
                                                   <div 
                                                       key={u.id} 
-                                                      className={`flex items-center gap-3 p-3 transition-colors ${exists ? 'opacity-50 bg-muted/50' : 'hover:bg-muted/50 cursor-pointer'}`}
-                                                      onClick={() => !exists && handleAddSlackUser(u)}
+                                                      className={`flex items-center gap-3 p-3 transition-colors ${exists ? 'opacity-50 bg-muted/50' : 'hover:bg-muted/50'}`}
                                                   >
+                                                      <Checkbox
+                                                        checked={isSelected}
+                                                        onCheckedChange={(checked) => toggleSlackSelection(u.id, checked === true)}
+                                                        disabled={exists}
+                                                      />
                                                       <Avatar className="h-9 w-9 border">
                                                           <AvatarImage src={u.image_original} />
                                                           <AvatarFallback>{(u.real_name || u.name).substring(0, 2).toUpperCase()}</AvatarFallback>
@@ -758,7 +827,9 @@ export default function MembersPage() {
                                                       {exists ? (
                                                           <Badge variant="outline" className="text-[10px]">Added</Badge>
                                                       ) : (
-                                                          <Button size="sm" variant="ghost" className="h-7 px-2">Add</Button>
+                                                          <Badge variant={isSelected ? "default" : "secondary"} className="text-[10px]">
+                                                            {isSelected ? "Selected" : "Available"}
+                                                          </Badge>
                                                       )}
                                                   </div>
                                               );
@@ -770,6 +841,17 @@ export default function MembersPage() {
                                           )}
                                       </div>
                                   )}
+                              </div>
+                              <div className="flex justify-end gap-2">
+                                <Button variant="outline" onClick={() => setSelectedSlackUsers(new Set())}>
+                                  Clear
+                                </Button>
+                                <Button
+                                  onClick={handleAddSelectedSlackUsers}
+                                  disabled={saving || selectedSlackUsers.size === 0}
+                                >
+                                  {saving ? "Adding…" : `Add ${selectedSlackUsers.size || ""} member${selectedSlackUsers.size === 1 ? "" : "s"}`}
+                                </Button>
                               </div>
                           </div>
                       </DialogContent>

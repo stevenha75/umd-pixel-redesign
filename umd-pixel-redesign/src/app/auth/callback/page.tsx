@@ -7,6 +7,7 @@ import { signInWithCustomToken } from "firebase/auth";
 import { auth, functions } from "@/lib/firebase";
 import Image from "next/image";
 import { LoadingState } from "@/components/LoadingState";
+import { getSlackRedirectUri } from "@/lib/slackAuth";
 
 export default function CallbackPage() {
   return (
@@ -31,9 +32,7 @@ function SlackCallback() {
   useEffect(() => {
     const code = searchParams.get("code");
     const error = searchParams.get("error");
-    const redirectUri =
-      process.env.NEXT_PUBLIC_SLACK_REDIRECT_URI ||
-      `${window.location.origin}/auth/callback`;
+    const redirectUri = getSlackRedirectUri();
 
     if (error) {
       setStatus("Slack authorization was cancelled.");
