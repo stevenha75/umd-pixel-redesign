@@ -221,18 +221,43 @@ export default function MembersPage() {
 
       setSaving(true);
       try {
-          await Promise.all(usersToAdd.map((u) => addSlackMember(u)));
+          const results = await Promise.allSettled(usersToAdd.map((u) => addSlackMember(u)));
           await membersQuery.refetch();
-          setSelectedSlackUsers(new Set());
-          setSlackOpen(false);
-          setMessage(
-            usersToAdd.length === 1
-              ? "1 member added successfully."
-              : `${usersToAdd.length} members added successfully.`
+          
+          const succeeded = results.filter((r) => r.status === "fulfilled").length;
+          const failed = results.filter((r) => r.status === "rejected").length;
+          
+          // Keep only failed users in selection so they can be retried
+          const failedUserIdsToKeep = new Set(
+            results
+              .map((r, idx) => (r.status === "rejected" ? usersToAdd[idx].id : null))
+              .filter(Boolean) as string[]
           );
+          setSelectedSlackUsers(new Set([...selectedSlackUsers].filter((id) => failedUserIdsToKeep.has(id))));
+          
+          if (failed === 0) {
+            setSlackOpen(false);
+            setMessage(
+              succeeded === 1
+                ? "1 member added successfully."
+                : `${succeeded} members added successfully.`
+            );
+          } else if (succeeded === 0) {
+            setMessage(
+              failed === 1
+                ? "Failed to add member."
+                : `Failed to add ${failed} members.`
+            );
+          } else {
+            setMessage(
+              `${succeeded} member${succeeded === 1 ? "" : "s"} added successfully, ${failed} failed.`
+            );
+          }
       } catch (error) {
+          // This catch handles unexpected errors (e.g., network failure, refetch issues)
+          // Individual user addition failures are handled by Promise.allSettled above
           console.error(error);
-          setMessage(error instanceof Error ? error.message : "Failed to add member.");
+          setMessage(error instanceof Error ? error.message : "An unexpected error occurred.");
       } finally {
           setSaving(false);
       }
@@ -293,9 +318,19 @@ export default function MembersPage() {
     [members]
   );
 
+  const existingMemberEmails = useMemo(
+    () => new Set(members.map((m) => m.email).filter(Boolean) as string[]),
+    [members]
+  );
+
   const selectableVisibleSlackUsers = useMemo(
-    () => visibleSlackUsers.filter((u) => !existingSlackIds.has(u.id)),
-    [visibleSlackUsers, existingSlackIds]
+    () =>
+      visibleSlackUsers.filter((u) => {
+        const hasExistingSlackId = existingSlackIds.has(u.id);
+        const hasExistingEmail = u.email ? existingMemberEmails.has(u.email) : false;
+        return !hasExistingSlackId && !hasExistingEmail;
+      }),
+    [visibleSlackUsers, existingSlackIds, existingMemberEmails]
   );
 
   const allVisibleSelected =
@@ -850,7 +885,11 @@ export default function MembersPage() {
                                   onClick={handleAddSelectedSlackUsers}
                                   disabled={saving || selectedSlackUsers.size === 0}
                                 >
-                                  {saving ? "Adding…" : `Add ${selectedSlackUsers.size || ""} member${selectedSlackUsers.size === 1 ? "" : "s"}`}
+                                  {saving
+                                    ? "Adding…"
+                                    : selectedSlackUsers.size === 0
+                                    ? "Add members"
+                                    : `Add ${selectedSlackUsers.size} member${selectedSlackUsers.size === 1 ? "" : "s"}`}
                                 </Button>
                               </div>
                           </div>
