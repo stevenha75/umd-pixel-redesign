@@ -227,13 +227,13 @@ export default function MembersPage() {
           const succeeded = results.filter((r) => r.status === "fulfilled").length;
           const failed = results.filter((r) => r.status === "rejected").length;
           
-          // Clear only successfully added users
-          const failedUserIds = new Set(
+          // Keep only failed users in selection so they can be retried
+          const failedUserIdsToKeep = new Set(
             results
               .map((r, idx) => (r.status === "rejected" ? usersToAdd[idx].id : null))
               .filter(Boolean) as string[]
           );
-          setSelectedSlackUsers(new Set([...selectedSlackUsers].filter((id) => failedUserIds.has(id))));
+          setSelectedSlackUsers(new Set([...selectedSlackUsers].filter((id) => failedUserIdsToKeep.has(id))));
           
           if (failed === 0) {
             setSlackOpen(false);
@@ -254,8 +254,10 @@ export default function MembersPage() {
             );
           }
       } catch (error) {
+          // This catch handles unexpected errors (e.g., network failure, refetch issues)
+          // Individual user addition failures are handled by Promise.allSettled above
           console.error(error);
-          setMessage(error instanceof Error ? error.message : "Failed to add members.");
+          setMessage(error instanceof Error ? error.message : "An unexpected error occurred.");
       } finally {
           setSaving(false);
       }
