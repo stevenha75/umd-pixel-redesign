@@ -6,13 +6,13 @@ import { useRouter } from "next/navigation";
 import { useEffect } from "react";
 import Image from "next/image";
 import { LoadingState } from "@/components/LoadingState";
+import { buildSlackAuthUrl, getSlackRedirectUri } from "@/lib/slackAuth";
 
 export default function LoginPage() {
   const { user, loading } = useAuth();
   const router = useRouter();
 
   const SLACK_CLIENT_ID = process.env.NEXT_PUBLIC_SLACK_CLIENT_ID;
-  const SLACK_REDIRECT_URI = process.env.NEXT_PUBLIC_SLACK_REDIRECT_URI;
   useEffect(() => {
     if (!loading && user) {
       router.push("/");
@@ -25,9 +25,8 @@ export default function LoginPage() {
       return;
     }
 
-    const redirectUri =
-      SLACK_REDIRECT_URI || `${window.location.origin}/auth/callback`;
-    const slackAuthUrl = `https://slack.com/oauth/v2/authorize?client_id=${SLACK_CLIENT_ID}&user_scope=identity.basic,identity.email,identity.avatar&redirect_uri=${encodeURIComponent(redirectUri)}`;
+    const redirectUri = getSlackRedirectUri();
+    const slackAuthUrl = buildSlackAuthUrl(SLACK_CLIENT_ID, redirectUri);
     window.location.href = slackAuthUrl;
   };
 
