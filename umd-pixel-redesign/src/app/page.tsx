@@ -41,6 +41,10 @@ export default function Home() {
   const globalLoading = isLoading || isFetching;
   const hasMorePixelRows = pixelCursor !== null && (pixelTotal === undefined || pixelRows.length < pixelTotal);
   const hasMoreLeaderboardRows = leaderboardCursor !== null;
+  const dashboardErrorMessage =
+    error instanceof Error && error.message
+      ? error.message
+      : "Please try refreshing the page.";
 
   useEffect(() => {
     if (!data) {
@@ -63,7 +67,7 @@ export default function Home() {
     setLoadingMorePixels(true);
     try {
       const nextPage = await fetchPixelLogPage({
-        userId: user.uid,
+        userId: data?.resolvedUserId ?? user.uid,
         semesterId: data?.currentSemesterId,
         cursor: pixelCursor,
       });
@@ -134,7 +138,7 @@ export default function Home() {
               <span className="mt-1 inline-flex h-8 w-8 items-center justify-center rounded-full bg-destructive text-white">!</span>
               <div>
                 <div className="text-base font-semibold text-destructive">Could not load dashboard.</div>
-                <p className="text-sm text-destructive/80">Please try refreshing the page.</p>
+                <p className="text-sm text-destructive/80">{dashboardErrorMessage}</p>
               </div>
             </div>
           )}

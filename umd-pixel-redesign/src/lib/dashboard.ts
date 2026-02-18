@@ -15,7 +15,7 @@ import {
   where,
   FirestoreError,
 } from "firebase/firestore";
-import { db } from "./firebase";
+import { auth, db } from "./firebase";
 import { toDate } from "./dates";
 import type { EventDocument, UserDocument, ActivityDocument } from "./types";
 
@@ -42,6 +42,7 @@ export type LeaderboardCursor = {
 };
 
 export type DashboardData = {
+  resolvedUserId: string;
   userName: string;
   email: string;
   pixelTotal: number;
@@ -81,20 +82,99 @@ const requiredTypes = ["GBM", "other_mandatory"];
 export const PIXEL_LOG_PAGE_SIZE = 25;
 export const LEADERBOARD_PAGE_SIZE = 10;
 
-async function fetchExcusedEventIds(userId: string) {
-  const excusedSnapshot = await getDocs(
-    query(
-      collectionGroup(db, "excused_absences"),
-      where("userId", "==", userId),
-      where("status", "==", "approved")
-    )
+function isFailedPreconditionError(err: unknown): err is FirestoreError {
+  return (err as FirestoreError | undefined)?.code === "failed-precondition";
+}
+
+function isPermissionDeniedError(err: unknown): err is FirestoreError {
+  return (err as FirestoreError | undefined)?.code === "permission-denied";
+}
+
+function getUserPixelTotal(user: Partial<UserDocument>): number {
+  return user.pixelCached ?? user.pixels ?? 0;
+}
+
+async function findUserDocByField(field: "slackId" | "email" | "slackEmail", value?: string | null) {
+  if (!value) return null;
+  const snap = await getDocs(
+    query(collection(db, "users"), where(field, "==", value), limit(1))
   );
-  const excusedEventIds = new Set<string>();
-  excusedSnapshot.forEach((docSnap) => {
-    const eventRef = docSnap.ref.parent.parent;
-    if (eventRef) excusedEventIds.add(eventRef.id);
-  });
-  return excusedEventIds;
+  return snap.empty ? null : snap.docs[0];
+}
+
+async function resolveDashboardUser(userId: string): Promise<{
+  id: string;
+  data: Partial<UserDocument>;
+} | null> {
+  const directSnap = await getDoc(doc(db, "users", userId));
+  if (directSnap.exists()) {
+    return { id: directSnap.id, data: (directSnap.data() || {}) as Partial<UserDocument> };
+  }
+
+  const bySlackId = await findUserDocByField("slackId", userId);
+  if (bySlackId) {
+    return { id: bySlackId.id, data: (bySlackId.data() || {}) as Partial<UserDocument> };
+  }
+
+  const rawEmail = auth.currentUser?.email?.trim();
+  const emailCandidates = rawEmail
+    ? Array.from(new Set([rawEmail, rawEmail.toLowerCase()]))
+    : [];
+
+  for (const email of emailCandidates) {
+    const byEmail = await findUserDocByField("email", email);
+    if (byEmail) {
+      return { id: byEmail.id, data: (byEmail.data() || {}) as Partial<UserDocument> };
+    }
+  }
+
+  for (const email of emailCandidates) {
+    const bySlackEmail = await findUserDocByField("slackEmail", email);
+    if (bySlackEmail) {
+      return { id: bySlackEmail.id, data: (bySlackEmail.data() || {}) as Partial<UserDocument> };
+    }
+  }
+
+  return null;
+}
+
+async function fetchExcusedEventIds(userId: string) {
+  try {
+    const excusedSnapshot = await getDocs(
+      query(
+        collectionGroup(db, "excused_absences"),
+        where("userId", "==", userId),
+        where("status", "==", "approved")
+      )
+    );
+    const excusedEventIds = new Set<string>();
+    excusedSnapshot.forEach((docSnap) => {
+      const eventRef = docSnap.ref.parent.parent;
+      if (eventRef) excusedEventIds.add(eventRef.id);
+    });
+    return excusedEventIds;
+  } catch (err) {
+    if (isPermissionDeniedError(err)) {
+      return new Set<string>();
+    }
+    if (!isFailedPreconditionError(err)) {
+      throw err;
+    }
+
+    const fallbackSnapshot = await getDocs(
+      query(collectionGroup(db, "excused_absences"), where("userId", "==", userId))
+    );
+
+    const excusedEventIds = new Set<string>();
+    fallbackSnapshot.forEach((docSnap) => {
+      const data = docSnap.data() as { status?: string };
+      if (data.status !== "approved") return;
+      const eventRef = docSnap.ref.parent.parent;
+      if (eventRef) excusedEventIds.add(eventRef.id);
+    });
+
+    return excusedEventIds;
+  }
 }
 
 function mapEventToPixelRow(
@@ -236,14 +316,21 @@ function mapLeaderboardRow(docSnap: QueryDocumentSnapshot): LeaderboardRow {
   return {
     id: docSnap.id,
     name,
-    pixels: data.pixelCached ?? data.pixels ?? 0,
+    pixels: getUserPixelTotal(data),
   };
 }
 
 function makeLeaderboardCursor(snapshot: QueryDocumentSnapshot): LeaderboardCursor {
   const data = snapshot.data() as UserDocument;
-  const pixels = data.pixelCached ?? data.pixels ?? 0;
+  const pixels = getUserPixelTotal(data);
   return { pixels, id: snapshot.id };
+}
+
+function compareLeaderboardDocs(a: QueryDocumentSnapshot, b: QueryDocumentSnapshot) {
+  const pixelsA = getUserPixelTotal(a.data() as UserDocument);
+  const pixelsB = getUserPixelTotal(b.data() as UserDocument);
+  if (pixelsA !== pixelsB) return pixelsB - pixelsA;
+  return b.id.localeCompare(a.id);
 }
 
 function buildLeaderboardQuery(cursor?: LeaderboardCursor | null) {
@@ -257,6 +344,50 @@ function buildLeaderboardQuery(cursor?: LeaderboardCursor | null) {
     : [orderBy("pixelCached", "desc"), orderBy(documentId(), "desc"), limit(LEADERBOARD_PAGE_SIZE)];
 
   return query(collection(db, "users"), ...constraints);
+}
+
+async function fetchLeaderboardPageInternal({
+  cursor,
+}: { cursor?: LeaderboardCursor | null } = {}): Promise<{
+  rows: LeaderboardRow[];
+  nextCursor: LeaderboardCursor | null;
+}> {
+  try {
+    const leaderboardSnap = await getDocs(buildLeaderboardQuery(cursor));
+    const rows = leaderboardSnap.docs.map((docSnap) => mapLeaderboardRow(docSnap));
+    const nextCursor =
+      leaderboardSnap.docs.length === LEADERBOARD_PAGE_SIZE
+        ? makeLeaderboardCursor(leaderboardSnap.docs[leaderboardSnap.docs.length - 1])
+        : null;
+
+    return { rows, nextCursor };
+  } catch (err) {
+    if (!isFailedPreconditionError(err)) {
+      throw err;
+    }
+
+    const leaderboardSnap = await getDocs(collection(db, "users"));
+    const sortedDocs = [...leaderboardSnap.docs].sort(compareLeaderboardDocs);
+    const startIndex = cursor
+      ? sortedDocs.findIndex((docSnap) => {
+          const pixels = getUserPixelTotal(docSnap.data() as UserDocument);
+          return pixels < cursor.pixels || (pixels === cursor.pixels && docSnap.id.localeCompare(cursor.id) < 0);
+        })
+      : 0;
+
+    if (startIndex === -1) {
+      return { rows: [], nextCursor: null };
+    }
+
+    const pageDocs = sortedDocs.slice(startIndex, startIndex + LEADERBOARD_PAGE_SIZE);
+    const rows = pageDocs.map((docSnap) => mapLeaderboardRow(docSnap));
+    const nextCursor =
+      startIndex + LEADERBOARD_PAGE_SIZE < sortedDocs.length && pageDocs.length > 0
+        ? makeLeaderboardCursor(pageDocs[pageDocs.length - 1])
+        : null;
+
+    return { rows, nextCursor };
+  }
 }
 
 export async function fetchPixelLogPage({
@@ -275,11 +406,9 @@ export async function fetchPixelLogPage({
 }
 
 export async function fetchDashboardData(userId: string): Promise<DashboardData> {
-  const userSnap = await getDoc(doc(db, "users", userId));
-  if (!userSnap.exists()) {
-    throw new Error("User document not found");
-  }
-  const userData = userSnap.data() || {};
+  const resolvedUser = await resolveDashboardUser(userId);
+  const resolvedUserId = resolvedUser?.id ?? userId;
+  const userData = resolvedUser?.data || {};
 
   const settingsSnap = await getDoc(doc(db, "settings", "global"));
   const currentSemesterId = settingsSnap.data()?.currentSemesterId;
@@ -292,9 +421,9 @@ export async function fetchDashboardData(userId: string): Promise<DashboardData>
       ? pixelDeltaBySemester[currentSemesterId]
       : pixelDeltaLegacy;
 
-  const excusedEventIds = await fetchExcusedEventIds(userId);
+  const excusedEventIds = await fetchExcusedEventIds(resolvedUserId);
   const pixelLogPage = await fetchPixelLogPageInternal(
-    { userId, semesterId: currentSemesterId, includeTotal: true },
+    { userId: resolvedUserId, semesterId: currentSemesterId, includeTotal: true },
     excusedEventIds
   );
 
@@ -308,7 +437,7 @@ export async function fetchDashboardData(userId: string): Promise<DashboardData>
   activitiesSnap.forEach((docSnap) => {
     const data = docSnap.data() as ActivityDocument;
     const multipliers = data.multipliers || {};
-    const multiplier = multipliers[userId] || 0;
+    const multiplier = multipliers[resolvedUserId] || 0;
     if (multiplier) {
       const total = (data.pixels || 0) * multiplier;
       activities.push({
@@ -330,27 +459,41 @@ export async function fetchDashboardData(userId: string): Promise<DashboardData>
   let rank: number | undefined;
 
   if (leaderboardEnabled) {
-    const leaderboardSnap = await getDocs(buildLeaderboardQuery());
-    leaderboard = leaderboardSnap.docs.map((docSnap) => mapLeaderboardRow(docSnap));
-    leaderboardCursor =
-      leaderboardSnap.docs.length === LEADERBOARD_PAGE_SIZE
-        ? makeLeaderboardCursor(leaderboardSnap.docs[leaderboardSnap.docs.length - 1])
-        : null;
+    const leaderboardPage = await fetchLeaderboardPageInternal();
+    leaderboard = leaderboardPage.rows;
+    leaderboardCursor = leaderboardPage.nextCursor;
 
     const userPixels = pixelTotal;
-    const rankQuery = query(
-      collection(db, "users"), 
-      where("pixelCached", ">", userPixels)
-    );
-    const rankSnap = await getCountFromServer(rankQuery);
-    rank = rankSnap.data().count + 1;
+    try {
+      const rankQuery = query(
+        collection(db, "users"),
+        where("pixelCached", ">", userPixels)
+      );
+      const rankSnap = await getCountFromServer(rankQuery);
+      rank = rankSnap.data().count + 1;
+    } catch (err) {
+      if (!isFailedPreconditionError(err)) {
+        throw err;
+      }
+
+      const rankFallbackSnap = await getDocs(collection(db, "users"));
+      const higherPixelCount = rankFallbackSnap.docs.reduce((count, docSnap) => {
+        const pixels = getUserPixelTotal(docSnap.data() as UserDocument);
+        return pixels > userPixels ? count + 1 : count;
+      }, 0);
+      rank = higherPixelCount + 1;
+    }
   }
 
-  const name = `${userData.firstName || ""} ${userData.lastName || ""}`.trim() || "Member";
+  const name =
+    `${userData.firstName || ""} ${userData.lastName || ""}`.trim() ||
+    auth.currentUser?.displayName ||
+    "Member";
 
   return {
+    resolvedUserId,
     userName: name,
-    email: userData.email || userData.slackEmail || "",
+    email: userData.email || userData.slackEmail || auth.currentUser?.email || "",
     pixelTotal,
     pixelDelta,
     pixelLog: pixelLogPage.rows,
@@ -371,12 +514,5 @@ export async function fetchLeaderboardPage({
   rows: LeaderboardRow[];
   nextCursor: LeaderboardCursor | null;
 }> {
-  const leaderboardSnap = await getDocs(buildLeaderboardQuery(cursor));
-  const rows = leaderboardSnap.docs.map((docSnap) => mapLeaderboardRow(docSnap));
-  const nextCursor =
-    leaderboardSnap.docs.length === LEADERBOARD_PAGE_SIZE
-      ? makeLeaderboardCursor(leaderboardSnap.docs[leaderboardSnap.docs.length - 1])
-      : null;
-
-  return { rows, nextCursor };
+  return fetchLeaderboardPageInternal({ cursor });
 }
