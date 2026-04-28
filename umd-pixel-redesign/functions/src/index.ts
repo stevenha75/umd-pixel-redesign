@@ -21,6 +21,22 @@ function assertSlackConfig() {
     }
 }
 
+function isMissingIndexError(error: unknown) {
+    const code = (error as {code?: number | string} | undefined)?.code;
+    const message =
+        error instanceof Error
+            ? error.message
+            : typeof error === "object" && error !== null && "message" in error
+                ? String((error as {message?: unknown}).message)
+                : "";
+
+    return (
+        code === 9 ||
+        code === "failed-precondition" ||
+        message.includes("requires an index")
+    );
+}
+
 interface SlackMember {
     id: string;
     name: string;
@@ -372,20 +388,42 @@ async function recalculateUserPixels(userId: string) {
 
     let totalPixels = pixelDelta;
 
-    // Get all approved excused absences for this user
-    const excusedSnapshot = await db.collectionGroup("excused_absences")
-        .where("userId", "==", userId)
-        .where("status", "==", "approved")
-        .get();
-
     const excusedEventIds = new Set<string>();
-    excusedSnapshot.forEach((doc) => {
-        // Parent of excused_absences is the event document
+
+    const addExcusedEventId = (doc: admin.firestore.QueryDocumentSnapshot) => {
         const eventRef = doc.ref.parent.parent;
         if (eventRef) {
             excusedEventIds.add(eventRef.id);
         }
-    });
+    };
+
+    try {
+        const excusedSnapshot = await db.collectionGroup("excused_absences")
+            .where("userId", "==", userId)
+            .where("status", "==", "approved")
+            .get();
+
+        excusedSnapshot.forEach(addExcusedEventId);
+    } catch (error) {
+        if (!isMissingIndexError(error)) {
+            throw error;
+        }
+
+        console.warn(
+            "Missing excused_absences composite index; " +
+            `falling back to userId-only query for ${userId}.`
+        );
+
+        const fallbackSnapshot = await db.collectionGroup("excused_absences")
+            .where("userId", "==", userId)
+            .get();
+
+        fallbackSnapshot.forEach((doc) => {
+            if (doc.data().status === "approved") {
+                addExcusedEventId(doc);
+            }
+        });
+    }
 
     const eventsSnapshot = await db.collection("events")
         .where("semesterId", "==", currentSemesterId)
