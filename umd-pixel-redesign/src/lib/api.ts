@@ -400,25 +400,12 @@ export async function deleteMember(userId: string) {
 }
 
 export async function setAdminByEmail(email: string, isAdmin: boolean) {
-  const normalized = email.trim().toLowerCase();
-  const matches = new Set<string>();
-
-  const direct = await getDocs(
-    query(collection(db, "users"), where("email", "==", normalized), limit(20))
-  );
-  direct.forEach((d) => matches.add(d.id));
-
-  const slack = await getDocs(
-    query(collection(db, "users"), where("slackEmail", "==", normalized), limit(20))
-  );
-  slack.forEach((d) => matches.add(d.id));
-
-  if (!matches.size) {
-    throw new Error("No user found with that email.");
-  }
-
-  await Promise.all(Array.from(matches).map((id) => updateDoc(doc(db, "users", id), { isAdmin })));
-  return matches.size;
+  const fn = httpsCallable<
+    { email: string; isAdmin: boolean },
+    { updated?: number }
+  >(functions, "setAdminByEmail");
+  const result = await fn({ email, isAdmin });
+  return result.data?.updated ?? 0;
 }
 
 export async function setPixelDelta(
