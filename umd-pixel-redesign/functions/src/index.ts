@@ -516,3 +516,50 @@ export const recalculateUserPixelsCallable = functions
         await recalculateUserPixels(userId);
         return { success: true };
     });
+
+export const setAdminByEmail = functions
+    .region("us-central1")
+    .https.onCall(async (data, context) => {
+        if (!context.auth?.token.isAdmin) {
+            throw new functions.https.HttpsError("permission-denied", "Must be an admin.");
+        }
+
+        const email = String((data as {email?: string})?.email || "").trim().toLowerCase();
+        const isAdmin = Boolean((data as {isAdmin?: boolean})?.isAdmin);
+
+        if (!email) {
+            throw new functions.https.HttpsError("invalid-argument", "Missing email.");
+        }
+
+        const db = admin.firestore();
+        const [emailMatches, slackEmailMatches] = await Promise.all([
+            db.collection("users").where("email", "==", email).limit(20).get(),
+            db.collection("users").where("slackEmail", "==", email).limit(20).get(),
+        ]);
+
+        const matchedDocs = new Map<string, admin.firestore.QueryDocumentSnapshot>();
+        emailMatches.docs.forEach((docSnap) => matchedDocs.set(docSnap.id, docSnap));
+        slackEmailMatches.docs.forEach((docSnap) => matchedDocs.set(docSnap.id, docSnap));
+
+        if (!matchedDocs.size) {
+            throw new functions.https.HttpsError("not-found", "No user found with that email.");
+        }
+
+        await Promise.all(
+            Array.from(matchedDocs.values()).map((docSnap) =>
+                docSnap.ref.set({isAdmin}, {merge: true})
+            )
+        );
+
+        await Promise.all(
+            Array.from(matchedDocs.keys()).map(async (uid) => {
+                try {
+                    await admin.auth().setCustomUserClaims(uid, {isAdmin});
+                } catch (error) {
+                    console.warn(`Skipped custom-claim update for ${uid}:`, error);
+                }
+            })
+        );
+
+        return {updated: matchedDocs.size};
+    });
